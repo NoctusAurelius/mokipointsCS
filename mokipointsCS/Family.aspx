@@ -376,6 +376,77 @@
             display: none;
         }
 
+        /* Toast Message - Compact */
+        .message-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 12px 20px;
+            min-width: 250px;
+            max-width: 400px;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            opacity: 0;
+            transform: translateX(400px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .message-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+
+        .message-toast.success {
+            border-left: 4px solid #2e7d32;
+        }
+
+        .message-toast.error {
+            border-left: 4px solid #d32f2f;
+        }
+
+        .message-toast-text {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .message-toast.success .message-toast-text {
+            color: #2e7d32;
+        }
+
+        .message-toast.error .message-toast-text {
+            color: #d32f2f;
+        }
+
+        .message-toast-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .message-toast-close:hover {
+            color: #333;
+        }
+
         /* Sidebar Layout - Discord Style (Left and Right Sidebars, Fixed) */
         .family-layout {
             display: flex;
@@ -2308,18 +2379,18 @@
                                     if (chatLoading) chatLoading.style.display = 'none';
                                     if (chatEmpty) chatEmpty.style.display = 'none';
                                     
-                                    // Display messages (newest first)
+                                    // Display messages (oldest first, like Facebook Messenger)
                                     messages.forEach(function(msg) {
-                                        appendMessage(msg, false); // false = not a new message
+                                        appendMessage(msg, false, chatMessages); // false = not a new message
                                     });
                                     
-                                    // Update last message ID (newest message is first)
+                                    // Update last message ID (newest message is last)
                                     if (messages.length > 0) {
-                                        chatState.lastMessageId = messages[0].Id;
+                                        chatState.lastMessageId = messages[messages.length - 1].Id;
                                     }
                                     
-                                    // Scroll to top to show newest messages
-                                    scrollToTop();
+                                    // Scroll to bottom to show newest messages
+                                    scrollToBottom();
                                 }
                             } else {
                                 console.error('Failed to load messages:', response.d.error);
@@ -2351,13 +2422,21 @@
                         if (response.d && response.d.success) {
                             var messages = response.d.messages || [];
                             if (messages.length > 0) {
-                                // Prepend new messages at the top (newest first)
+                                // Append new messages at the bottom (oldest first, like Facebook Messenger)
                                 var chatMessages = document.getElementById('chatMessages');
-                                messages.reverse().forEach(function(msg) {
-                                    appendMessage(msg, true, chatMessages); // true = new message, prepend
+                                var wasAtBottom = isScrolledToBottom(chatMessages);
+                                
+                                messages.forEach(function(msg) {
+                                    appendMessage(msg, true, chatMessages); // true = new message, append
                                     chatState.lastMessageId = Math.max(chatState.lastMessageId, msg.Id);
                                 });
-                                // Don't auto-scroll for new messages (let user stay where they are)
+                                
+                                // Auto-scroll to bottom only if user was already at bottom
+                                if (wasAtBottom) {
+                                    setTimeout(function() {
+                                        scrollToBottom();
+                                    }, 100);
+                                }
                             }
                             
                             // Also refresh reactions for all visible messages
@@ -2543,11 +2622,17 @@
             }));
         }
 
-        function scrollToTop() {
+        function scrollToBottom() {
             var chatMessages = document.getElementById('chatMessages');
             if (chatMessages) {
-                chatMessages.scrollTop = 0;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
             }
+        }
+
+        function isScrolledToBottom(element) {
+            if (!element) return false;
+            var threshold = 100; // Consider "at bottom" if within 100px
+            return element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
         }
 
         function appendMessage(msg, isNewMessage, chatContainer) {
@@ -2654,12 +2739,8 @@
 
             messageDiv.innerHTML = html;
             
-            // Prepend for new messages (at top), append for initial load
-            if (isNewMessage) {
-                chatMessages.insertBefore(messageDiv, chatMessages.firstChild);
-            } else {
-                chatMessages.appendChild(messageDiv);
-            }
+            // Always append at bottom (like Facebook Messenger)
+            chatMessages.appendChild(messageDiv);
             
             // Load reactions for this message
             loadReactions(msg.Id);
@@ -3398,6 +3479,12 @@
                     <span class="context-menu-icon">&#10006;</span>
                     <span class="context-menu-text">Kick Out</span>
                 </div>
+            </div>
+
+            <!-- Toast Message -->
+            <div id="messageToast" class="message-toast">
+                <span class="message-toast-text"></span>
+                <button type="button" class="message-toast-close" onclick="closeToast()">&times;</button>
             </div>
 
             <!-- Hidden fields for chat -->

@@ -207,11 +207,55 @@
         }
         
         function showLoading() {
-            var btn = document.getElementById('<%= btnChangePassword.ClientID %>');
-            if (Page_ClientValidate()) {
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner"></span>Changing Password...';
+            console.log('ChangePassword: showLoading() called');
+            
+            // Validate first with validation group
+            if (typeof Page_ClientValidate === 'function') {
+                console.log('ChangePassword: Running client-side validation...');
+                var isValid = Page_ClientValidate('ChangePassword');
+                console.log('ChangePassword: Validation result: ' + isValid);
+                
+                if (!isValid) {
+                    console.log('ChangePassword: Validation failed - preventing postback');
+                    return false; // Prevent postback if validation fails
+                }
+            } else {
+                console.log('ChangePassword: Page_ClientValidate function not found');
             }
+            
+            // If validation passes, change button appearance but DON'T disable it
+            // Disabling prevents ASP.NET from recognizing the button click
+            var btn = document.getElementById('<%= btnChangePassword.ClientID %>');
+            console.log('ChangePassword: Button found: ' + (btn ? 'YES' : 'NO'));
+            
+            if (btn) {
+                console.log('ChangePassword: Changing button appearance (not disabling)');
+                // Store original text
+                if (!btn.getAttribute('data-original-text')) {
+                    btn.setAttribute('data-original-text', btn.innerHTML || btn.value);
+                }
+                // Change appearance without disabling
+                if (btn.tagName === 'INPUT') {
+                    btn.value = 'Changing Password...';
+                    btn.style.opacity = '0.7';
+                    btn.style.cursor = 'wait';
+                } else {
+                    btn.innerHTML = '<span class="spinner"></span>Changing Password...';
+                    btn.style.opacity = '0.7';
+                    btn.style.cursor = 'wait';
+                }
+                // Prevent double-click by using a flag
+                if (btn.getAttribute('data-submitting') === 'true') {
+                    console.log('ChangePassword: Already submitting - preventing double-click');
+                    return false;
+                }
+                btn.setAttribute('data-submitting', 'true');
+            } else {
+                console.error('ChangePassword: Button not found!');
+            }
+            
+            console.log('ChangePassword: Allowing postback to proceed');
+            return true; // Allow postback to proceed
         }
     </script>
 </head>
@@ -239,10 +283,10 @@
                     </button>
                 </div>
                 <asp:RequiredFieldValidator ID="rfvNewPassword" runat="server" ControlToValidate="txtNewPassword" 
-                    ErrorMessage="New password is required" CssClass="validation-error" Display="Dynamic" EnableClientScript="true"></asp:RequiredFieldValidator>
+                    ErrorMessage="New password is required" CssClass="validation-error" Display="Dynamic" EnableClientScript="true" ValidationGroup="ChangePassword"></asp:RequiredFieldValidator>
                 <asp:RegularExpressionValidator ID="revNewPassword" runat="server" ControlToValidate="txtNewPassword" 
                     ValidationExpression=".{6,}" 
-                    ErrorMessage="Password must be at least 6 characters" CssClass="validation-error" Display="Dynamic" EnableClientScript="true"></asp:RegularExpressionValidator>
+                    ErrorMessage="Password must be at least 6 characters" CssClass="validation-error" Display="Dynamic" EnableClientScript="true" ValidationGroup="ChangePassword"></asp:RegularExpressionValidator>
             </div>
             
             <div class="form-group">
@@ -257,13 +301,13 @@
                     </button>
                 </div>
                 <asp:RequiredFieldValidator ID="rfvConfirmPassword" runat="server" ControlToValidate="txtConfirmPassword" 
-                    ErrorMessage="Please confirm your password" CssClass="validation-error" Display="Dynamic" EnableClientScript="true"></asp:RequiredFieldValidator>
+                    ErrorMessage="Please confirm your password" CssClass="validation-error" Display="Dynamic" EnableClientScript="true" ValidationGroup="ChangePassword"></asp:RequiredFieldValidator>
                 <asp:CompareValidator ID="cvPassword" runat="server" ControlToValidate="txtConfirmPassword" 
                     ControlToCompare="txtNewPassword" 
-                    ErrorMessage="Passwords do not match" CssClass="validation-error" Display="Dynamic" EnableClientScript="true"></asp:CompareValidator>
+                    ErrorMessage="Passwords do not match" CssClass="validation-error" Display="Dynamic" EnableClientScript="true" ValidationGroup="ChangePassword"></asp:CompareValidator>
             </div>
             
-            <asp:Button ID="btnChangePassword" runat="server" Text="Change Password" CssClass="btn-change-password" OnClick="btnChangePassword_Click" OnClientClick="showLoading()" />
+            <asp:Button ID="btnChangePassword" runat="server" Text="Change Password" CssClass="btn-change-password" OnClick="btnChangePassword_Click" OnClientClick="return showLoading();" ValidationGroup="ChangePassword" UseSubmitBehavior="true" />
             
             <asp:Label ID="lblError" runat="server" CssClass="error-message" Visible="false"></asp:Label>
             <asp:Label ID="lblSuccess" runat="server" CssClass="success-message" Visible="false"></asp:Label>

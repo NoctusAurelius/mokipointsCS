@@ -182,7 +182,7 @@ namespace mokipointsCS
                     query += " AND fm.Id < @LastMessageId";
                 }
 
-                query += " ORDER BY fm.CreatedDate DESC";
+                query += " ORDER BY fm.CreatedDate ASC";
 
                 List<SqlParameter> parameters = new List<SqlParameter>
                 {
@@ -237,7 +237,7 @@ namespace mokipointsCS
                     WHERE fm.FamilyId = @FamilyId 
                       AND fm.IsDeleted = 0
                       AND fm.Id > @LastMessageId
-                    ORDER BY fm.CreatedDate DESC";
+                    ORDER BY fm.CreatedDate ASC";
 
                 return DatabaseHelper.ExecuteQuery(query,
                     new SqlParameter("@FamilyId", familyId),

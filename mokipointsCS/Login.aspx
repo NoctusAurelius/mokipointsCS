@@ -203,6 +203,17 @@
             border-radius: 5px;
             border-left: 3px solid #d32f2f;
         }
+
+        .success-message {
+            color: #2e7d32;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 5px;
+            border-left: 3px solid #2e7d32;
+        }
         
         .validation-error {
             color: #d32f2f;

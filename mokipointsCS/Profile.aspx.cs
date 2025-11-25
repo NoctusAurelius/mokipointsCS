@@ -3,6 +3,7 @@ using System.Data;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Web.UI;
 
 namespace mokipointsCS
@@ -130,62 +131,252 @@ namespace mokipointsCS
         protected void btnUploadHidden_Click(object sender, EventArgs e)
         {
             System.Diagnostics.Debug.WriteLine("Profile: btnUploadHidden_Click called at " + DateTime.Now.ToString());
+            System.Drawing.Image originalImage = null;
+            System.Drawing.Image resizedImage = null;
+            string tempFilePath = null;
+            
             try
             {
-                System.Diagnostics.Debug.WriteLine("Profile: Checking if file exists");
-                if (fileUpload.HasFile)
+                // Check authentication
+                if (Session["UserId"] == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("Profile: File found - " + fileUpload.FileName);
-                    System.Diagnostics.Debug.WriteLine("Profile: File size - " + fileUpload.PostedFile.ContentLength + " bytes");
+                    System.Diagnostics.Debug.WriteLine("Profile: User not authenticated");
+                    ShowMessage("You must be logged in to upload a profile picture.", "error");
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine("Profile: Checking if file exists");
+                if (!fileUpload.HasFile)
+                {
+                    System.Diagnostics.Debug.WriteLine("Profile: No file uploaded");
+                    ShowMessage("Please select an image file to upload.", "error");
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine("Profile: File found - " + fileUpload.FileName);
+                System.Diagnostics.Debug.WriteLine("Profile: File size - " + fileUpload.PostedFile.ContentLength + " bytes");
+                
+                // Validate file
+                string fileName = fileUpload.FileName;
+                string fileExtension = Path.GetExtension(fileName).ToLower();
+                System.Diagnostics.Debug.WriteLine("Profile: File extension - " + fileExtension);
+                
+                // Check file extension
+                if (fileExtension != ".jpg" && fileExtension != ".jpeg" && fileExtension != ".png" && fileExtension != ".gif" && fileExtension != ".bmp")
+                {
+                    ShowMessage("Please upload a valid image file (JPG, PNG, GIF, or BMP).", "error");
+                    return;
+                }
+
+                // Check file size (10MB limit for better compatibility)
+                const int maxFileSize = 10 * 1024 * 1024; // 10MB
+                if (fileUpload.PostedFile.ContentLength > maxFileSize)
+                {
+                    ShowMessage("File size must be less than 10MB. Please compress or resize your image.", "error");
+                    return;
+                }
+
+                // Check minimum file size (must have some content)
+                if (fileUpload.PostedFile.ContentLength < 100)
+                {
+                    ShowMessage("The uploaded file appears to be empty or corrupted.", "error");
+                    return;
+                }
+
+                // Get user ID
+                int userId = Convert.ToInt32(Session["UserId"]);
+                System.Diagnostics.Debug.WriteLine("Profile: UserId = " + userId);
+
+                // Create ProfilePictures directory if it doesn't exist (in Images folder for HTTP access)
+                string profilePicturesDir = null;
+                try
+                {
+                    profilePicturesDir = Server.MapPath("~/Images/ProfilePictures");
+                    System.Diagnostics.Debug.WriteLine("Profile: ProfilePictures directory path: " + profilePicturesDir);
                     
-                    // Validate file
-                    string fileName = fileUpload.FileName;
-                    string fileExtension = Path.GetExtension(fileName).ToLower();
-                    System.Diagnostics.Debug.WriteLine("Profile: File extension - " + fileExtension);
-                    
-                    // Check file extension
-                    if (fileExtension != ".jpg" && fileExtension != ".jpeg" && fileExtension != ".png" && fileExtension != ".gif")
+                    if (string.IsNullOrEmpty(profilePicturesDir))
                     {
-                        ShowMessage("Please upload a valid image file (JPG, PNG, or GIF).", "error");
-                        return;
+                        throw new Exception("Unable to resolve ProfilePictures directory path.");
                     }
 
-                    // Check file size (25MB = 25 * 1024 * 1024 bytes)
-                    if (fileUpload.PostedFile.ContentLength > 25 * 1024 * 1024)
+                    // Ensure Images directory exists first
+                    string imagesDir = Server.MapPath("~/Images");
+                    if (!Directory.Exists(imagesDir))
                     {
-                        ShowMessage("File size must be less than 25MB.", "error");
-                        return;
-                    }
-
-                    // Get user ID
-                    int userId = Convert.ToInt32(Session["UserId"]);
-
-                    // Create ProfilePictures directory if it doesn't exist (in Images folder for HTTP access)
-                    string profilePicturesDir = Server.MapPath("~/Images/ProfilePictures");
-                    if (!Directory.Exists(profilePicturesDir))
-                    {
-                        Directory.CreateDirectory(profilePicturesDir);
-                        System.Diagnostics.Debug.WriteLine("Profile: Created ProfilePictures directory at " + profilePicturesDir);
-                    }
-
-                    // Generate unique filename
-                    string uniqueFileName = userId + "_" + DateTime.Now.Ticks + fileExtension;
-                    string filePath = Path.Combine(profilePicturesDir, uniqueFileName);
-
-                    // Process and save image
-                    using (System.Drawing.Image originalImage = System.Drawing.Image.FromStream(fileUpload.PostedFile.InputStream))
-                    {
-                        // Resize and crop to 500x500 square
-                        using (System.Drawing.Image resizedImage = ResizeAndCropToSquare(originalImage, 500))
+                        try
                         {
-                            // Save as JPEG
-                            string jpegPath = filePath.Replace(fileExtension, ".jpg");
-                            resizedImage.Save(jpegPath, ImageFormat.Jpeg);
-                            uniqueFileName = Path.GetFileName(jpegPath);
+                            Directory.CreateDirectory(imagesDir);
+                            System.Diagnostics.Debug.WriteLine("Profile: Created Images directory at " + imagesDir);
+                        }
+                        catch (Exception dirEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Profile: Failed to create Images directory: " + dirEx.Message);
+                            ShowMessage("Unable to create Images directory. Please check folder permissions.", "error");
+                            return;
                         }
                     }
 
-                    // Update database
+                    if (!Directory.Exists(profilePicturesDir))
+                    {
+                        try
+                        {
+                            Directory.CreateDirectory(profilePicturesDir);
+                            System.Diagnostics.Debug.WriteLine("Profile: Created ProfilePictures directory at " + profilePicturesDir);
+                        }
+                        catch (Exception dirEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Profile: Failed to create ProfilePictures directory: " + dirEx.Message);
+                            ShowMessage("Unable to create ProfilePictures directory. Please check folder permissions.", "error");
+                            return;
+                        }
+                    }
+
+                    // Check write permissions
+                    try
+                    {
+                        string testFile = Path.Combine(profilePicturesDir, "test_write.tmp");
+                        File.WriteAllText(testFile, "test");
+                        File.Delete(testFile);
+                        System.Diagnostics.Debug.WriteLine("Profile: Write permissions verified");
+                    }
+                    catch (Exception permEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Profile: Write permission check failed: " + permEx.Message);
+                        ShowMessage("Unable to write to ProfilePictures directory. Please check folder permissions.", "error");
+                        return;
+                    }
+                }
+                catch (Exception pathEx)
+                {
+                    System.Diagnostics.Debug.WriteLine("Profile: Path resolution error: " + pathEx.Message);
+                    ShowMessage("Unable to access the upload directory. Please contact support.", "error");
+                    return;
+                }
+
+                // Generate unique filename
+                string uniqueFileName = userId + "_" + DateTime.Now.Ticks + ".jpg";
+                string filePath = Path.Combine(profilePicturesDir, uniqueFileName);
+
+                // Validate and process image directly from stream (no temp file)
+                try
+                {
+                    // Validate image format by trying to load it directly from the uploaded stream
+                    try
+                    {
+                        // Reset stream position to beginning
+                        fileUpload.PostedFile.InputStream.Position = 0;
+                        
+                        // Load image directly from stream with validation
+                        originalImage = System.Drawing.Image.FromStream(fileUpload.PostedFile.InputStream, false, false);
+                        System.Diagnostics.Debug.WriteLine("Profile: Image loaded successfully - Size: " + originalImage.Width + "x" + originalImage.Height);
+                    }
+                    catch (ArgumentException imgEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Profile: Invalid image format: " + imgEx.Message);
+                        ShowMessage("The uploaded file is not a valid image or is corrupted. Please try a different image.", "error");
+                        return;
+                    }
+                    catch (OutOfMemoryException memEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Profile: Image too large for processing: " + memEx.Message);
+                        ShowMessage("The image is too large to process. Please resize it and try again.", "error");
+                        return;
+                    }
+
+                    // Process and resize image
+                    try
+                    {
+                        resizedImage = ResizeAndCropToSquare(originalImage, 500);
+                        System.Diagnostics.Debug.WriteLine("Profile: Image resized successfully");
+
+                        // Dispose original image before saving to free resources
+                        if (originalImage != null)
+                        {
+                            originalImage.Dispose();
+                            originalImage = null;
+                        }
+
+                        // Save as JPEG with quality settings
+                        // Use a new bitmap to ensure it's not locked
+                        using (Bitmap finalBitmap = new Bitmap(resizedImage))
+                        {
+                            ImageCodecInfo jpegCodec = ImageCodecInfo.GetImageEncoders().FirstOrDefault(codec => codec.FormatID == ImageFormat.Jpeg.Guid);
+                            
+                            if (jpegCodec != null)
+                            {
+                                using (EncoderParameters encoderParams = new EncoderParameters(1))
+                                {
+                                    encoderParams.Param[0] = new EncoderParameter(Encoder.Quality, 85L); // 85% quality
+                                    
+                                    // Ensure directory exists and file doesn't exist
+                                    if (File.Exists(filePath))
+                                    {
+                                        try
+                                        {
+                                            File.Delete(filePath);
+                                            System.Diagnostics.Debug.WriteLine("Profile: Deleted existing file");
+                                        }
+                                        catch (Exception delEx)
+                                        {
+                                            System.Diagnostics.Debug.WriteLine("Profile: Warning - Could not delete existing file: " + delEx.Message);
+                                        }
+                                    }
+                                    
+                                    // Save the image
+                                    finalBitmap.Save(filePath, jpegCodec, encoderParams);
+                                    System.Diagnostics.Debug.WriteLine("Profile: Image saved successfully: " + filePath);
+                                }
+                            }
+                            else
+                            {
+                                // Fallback if codec not found
+                                if (File.Exists(filePath))
+                                {
+                                    try { File.Delete(filePath); } catch { }
+                                }
+                                finalBitmap.Save(filePath, ImageFormat.Jpeg);
+                                System.Diagnostics.Debug.WriteLine("Profile: Image saved successfully (fallback): " + filePath);
+                            }
+                        }
+                    }
+                    catch (System.Runtime.InteropServices.ExternalException gdiEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Profile: GDI+ error saving image: " + gdiEx.Message);
+                        // Clean up any partial file
+                        if (File.Exists(filePath))
+                        {
+                            try 
+                            { 
+                                File.Delete(filePath);
+                                System.Diagnostics.Debug.WriteLine("Profile: Cleaned up partial file");
+                            } 
+                            catch { }
+                        }
+                        ShowMessage("Failed to save the image. Please try again or use a different image file.", "error");
+                        return;
+                    }
+                    catch (Exception saveEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Profile: Error saving image: " + saveEx.Message);
+                        // Clean up any partial file
+                        if (File.Exists(filePath))
+                        {
+                            try { File.Delete(filePath); } catch { }
+                        }
+                        ShowMessage("Failed to process the image. Please try a different image file.", "error");
+                        return;
+                    }
+                }
+                catch (Exception processEx)
+                {
+                    System.Diagnostics.Debug.WriteLine("Profile: Error processing image: " + processEx.Message);
+                    ShowMessage("An error occurred while processing the image: " + processEx.Message, "error");
+                    return;
+                }
+
+                // Update database
+                try
+                {
                     string query = @"
                         UPDATE [dbo].[Users]
                         SET ProfilePicture = @ProfilePicture
@@ -205,9 +396,29 @@ namespace mokipointsCS
                     else
                     {
                         System.Diagnostics.Debug.WriteLine("Profile: Database update failed - no rows affected");
-                        ShowMessage("Failed to update profile picture.", "error");
+                        // Clean up uploaded file if database update failed
+                        if (File.Exists(filePath))
+                        {
+                            try { File.Delete(filePath); } catch { }
+                        }
+                        ShowMessage("Failed to update profile picture in database. Please try again.", "error");
                     }
                 }
+                catch (Exception dbEx)
+                {
+                    System.Diagnostics.Debug.WriteLine("Profile: Database error: " + dbEx.Message);
+                    // Clean up uploaded file if database update failed
+                    if (File.Exists(filePath))
+                    {
+                        try { File.Delete(filePath); } catch { }
+                    }
+                    ShowMessage("Failed to save profile picture. Please try again.", "error");
+                }
+            }
+            catch (System.Threading.ThreadAbortException)
+            {
+                // Ignore thread abort exceptions (from redirects)
+                throw;
             }
             catch (Exception ex)
             {
@@ -217,10 +428,41 @@ namespace mokipointsCS
                     System.Diagnostics.Debug.WriteLine("Inner exception: " + ex.InnerException.Message);
                 }
                 System.Diagnostics.Debug.WriteLine("Stack trace: " + ex.StackTrace);
-                ShowMessage("An error occurred while uploading the profile picture: " + ex.Message, "error");
+                
+                // Clean up any temporary files
+                if (!string.IsNullOrEmpty(tempFilePath) && File.Exists(tempFilePath))
+                {
+                    try { File.Delete(tempFilePath); } catch { }
+                }
+                
+                // Show user-friendly error message
+                string errorMessage = "An error occurred while uploading the profile picture.";
+                if (ex.Message.Contains("timeout") || ex.Message.Contains("time"))
+                {
+                    errorMessage = "The upload timed out. Please try a smaller image file.";
+                }
+                else if (ex.Message.Contains("permission") || ex.Message.Contains("access"))
+                {
+                    errorMessage = "Permission denied. Please check folder permissions.";
+                }
+                else if (ex.Message.Contains("path") || ex.Message.Contains("directory"))
+                {
+                    errorMessage = "Unable to access the upload directory. Please contact support.";
+                }
+                
+                ShowMessage(errorMessage, "error");
             }
             finally
             {
+                // Dispose image resources
+                if (originalImage != null)
+                {
+                    try { originalImage.Dispose(); } catch { }
+                }
+                if (resizedImage != null)
+                {
+                    try { resizedImage.Dispose(); } catch { }
+                }
                 System.Diagnostics.Debug.WriteLine("Profile: btnUploadHidden_Click completed");
             }
         }
@@ -234,8 +476,8 @@ namespace mokipointsCS
             int x = (originalWidth - cropSize) / 2;
             int y = (originalHeight - cropSize) / 2;
 
-            // Create bitmap for cropped image
-            Bitmap croppedBitmap = new Bitmap(cropSize, cropSize);
+            // Create bitmap for cropped image with proper pixel format
+            Bitmap croppedBitmap = new Bitmap(cropSize, cropSize, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             using (Graphics g = Graphics.FromImage(croppedBitmap))
             {
                 g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
@@ -243,19 +485,25 @@ namespace mokipointsCS
                 g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
                 g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
 
+                // Clear with white background first
+                g.Clear(Color.White);
+
                 // Draw cropped image
                 g.DrawImage(originalImage, new Rectangle(0, 0, cropSize, cropSize),
                     new Rectangle(x, y, cropSize, cropSize), GraphicsUnit.Pixel);
             }
 
-            // Resize to target size
-            Bitmap resizedBitmap = new Bitmap(size, size);
+            // Resize to target size with proper pixel format
+            Bitmap resizedBitmap = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             using (Graphics g = Graphics.FromImage(resizedBitmap))
             {
                 g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
                 g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
                 g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+
+                // Clear with white background first
+                g.Clear(Color.White);
 
                 g.DrawImage(croppedBitmap, new Rectangle(0, 0, size, size));
             }

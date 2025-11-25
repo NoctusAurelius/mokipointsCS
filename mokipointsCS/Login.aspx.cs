@@ -19,6 +19,22 @@ namespace mokipointsCS
                 {
                     lblError.Visible = false;
                 }
+
+                // Check for success message from password change
+                if (!IsPostBack && Request.QueryString["message"] != null)
+                {
+                    string message = Request.QueryString["message"];
+                    if (message == "PasswordChanged")
+                    {
+                        // Show success message
+                        if (lblError != null)
+                        {
+                            lblError.Text = "Password changed successfully! Please login with your new password.";
+                            lblError.CssClass = "success-message";
+                            lblError.Visible = true;
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {

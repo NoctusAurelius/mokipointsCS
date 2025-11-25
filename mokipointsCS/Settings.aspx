@@ -195,7 +195,214 @@
             cursor: pointer;
             padding: 0;
         }
+
+        /* Logout Confirmation Modal */
+        .logout-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .logout-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .logout-modal-content {
+            background-color: white;
+            margin: auto;
+            padding: 0;
+            border-radius: 15px;
+            max-width: 450px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideDown 0.4s ease;
+            overflow: hidden;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            10%, 30%, 50%, 70%, 90% {
+                transform: translateX(-5px);
+            }
+            20%, 40%, 60%, 80% {
+                transform: translateX(5px);
+            }
+        }
+
+        .logout-modal-header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .logout-modal-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: #ff6b6b;
+            animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .logout-modal-title {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .logout-modal-body {
+            padding: 30px;
+            text-align: center;
+        }
+
+        .logout-modal-message {
+            color: #333;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .logout-modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .logout-btn {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .logout-btn-cancel {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+
+        .logout-btn-cancel:hover {
+            background-color: #d0d0d0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .logout-btn-confirm {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+        }
+
+        .logout-btn-confirm:hover {
+            background: linear-gradient(135deg, #ee5a6f 0%, #ff6b6b 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        }
+
+        .logout-btn-confirm:active {
+            transform: translateY(0);
+            animation: shake 0.5s ease;
+        }
     </style>
+    <script>
+        function showLogoutConfirmation() {
+            var modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeLogoutModal() {
+            var modal = document.getElementById('logoutModal');
+            if (modal) {
+                modal.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        function confirmLogout() {
+            var btnLogout = document.getElementById('<%= btnLogout.ClientID %>');
+            if (btnLogout) {
+                closeLogoutModal();
+                btnLogout.click();
+            }
+        }
+
+        // Close modal on backdrop click
+        function closeLogoutModalOnBackdrop(event) {
+            if (event.target.classList.contains('logout-modal')) {
+                closeLogoutModal();
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeLogoutModal();
+            }
+        });
+
+        // Set warning icon using Unicode to avoid encoding issues
+        document.addEventListener('DOMContentLoaded', function() {
+            var warningIcon = document.querySelector('.logout-modal-icon');
+            if (warningIcon) {
+                // Warning sign: U+26A0 (⚠)
+                warningIcon.textContent = String.fromCharCode(0x26A0);
+            }
+        });
+    </script>
 </head>
 <body>
     <form id="form1" runat="server">
@@ -271,7 +478,7 @@
                 </div>
 
                 <!-- Logout -->
-                <div class="settings-item" onclick="document.getElementById('<%= btnLogout.ClientID %>').click();">
+                <div class="settings-item" onclick="showLogoutConfirmation();">
                     <div class="settings-item-content">
                         <div class="settings-icon logout">X</div>
                         <div class="settings-text">
@@ -281,6 +488,26 @@
                     </div>
                     <div class="settings-arrow"></div>
                     <asp:Button ID="btnLogout" runat="server" OnClick="btnLogout_Click" style="display: none;" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Logout Confirmation Modal -->
+        <div id="logoutModal" class="logout-modal" onclick="closeLogoutModalOnBackdrop(event);">
+            <div class="logout-modal-content" onclick="event.stopPropagation();">
+                <div class="logout-modal-header">
+                    <div class="logout-modal-icon"></div>
+                    <div class="logout-modal-title">Confirm Logout</div>
+                </div>
+                <div class="logout-modal-body">
+                    <div class="logout-modal-message">
+                        Are you sure you want to logout?<br />
+                        You will need to login again to access your account.
+                    </div>
+                    <div class="logout-modal-buttons">
+                        <button type="button" class="logout-btn logout-btn-cancel" onclick="closeLogoutModal();">Cancel</button>
+                        <button type="button" class="logout-btn logout-btn-confirm" onclick="confirmLogout();">Logout</button>
+                    </div>
                 </div>
             </div>
         </div>

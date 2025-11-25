@@ -30,6 +30,22 @@ namespace mokipointsCS
 
                 int userId = Convert.ToInt32(Session["UserId"]);
 
+                // Check if parent is in a family
+                int? familyId = FamilyHelper.GetUserFamilyId(userId);
+                if (!familyId.HasValue)
+                {
+                    // Not in a family - show message panel
+                    pnlNoFamily.Visible = true;
+                    pnlSearchFilter.Visible = false;
+                    pnlTasks.Visible = false;
+                    pnlEmpty.Visible = false;
+                    return;
+                }
+                
+                // Hide no family message if user has family
+                pnlNoFamily.Visible = false;
+                pnlSearchFilter.Visible = true;
+
                 // Set user name - load from session or database
                 if (Session["FirstName"] != null && Session["LastName"] != null)
                 {

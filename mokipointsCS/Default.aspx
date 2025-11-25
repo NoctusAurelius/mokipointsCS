@@ -163,9 +163,11 @@
             padding: 100px 30px 60px;
             background-image: url('Images/Landing/bacgkround1.jpg');
             background-size: cover;
-            background-position: center;
+            background-position: center center;
             background-repeat: no-repeat;
+            background-attachment: fixed;
             position: relative;
+            overflow: hidden;
         }
         
         #hero::before {
@@ -189,14 +191,50 @@
             font-weight: bold;
             letter-spacing: 4px;
             margin-bottom: 20px;
+            animation: heroBrandingEntrance 1s ease-out;
         }
         
         .hero-branding .moki {
             color: #0066CC; /* Blue */
+            display: inline-block;
+            animation: heroMokiFloat 3s ease-in-out infinite;
+            animation-delay: 1s;
         }
         
         .hero-branding .points {
             color: #FF6600; /* Orange */
+            display: inline-block;
+            animation: heroPointsFloat 3s ease-in-out infinite;
+            animation-delay: 1.2s;
+        }
+
+        @keyframes heroBrandingEntrance {
+            0% {
+                opacity: 0;
+                transform: translateY(30px) scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes heroMokiFloat {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-10px) rotate(2deg);
+            }
+        }
+
+        @keyframes heroPointsFloat {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-10px) rotate(-2deg);
+            }
         }
         
         .hero-subtitle {

@@ -378,24 +378,35 @@
 
         /* Toast Message - Compact */
         .message-toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            padding: 12px 20px;
-            min-width: 250px;
-            max-width: 400px;
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 15px;
+            position: fixed !important;
+            top: 20px !important;
+            right: 20px !important;
+            left: auto !important;
+            bottom: auto !important;
+            background-color: white !important;
+            border-radius: 6px !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+            padding: 8px 12px !important;
+            width: fit-content !important;
+            max-width: 220px !important;
+            min-width: 0 !important;
+            z-index: 10000 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
             opacity: 0;
             transform: translateX(400px);
             transition: all 0.3s ease;
             pointer-events: none;
+            box-sizing: border-box !important;
+            height: fit-content !important;
+            min-height: auto !important;
+            max-height: 45px !important;
+            line-height: 1.3 !important;
+            margin: 0 !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            overflow: hidden !important;
         }
 
         .message-toast.show {
@@ -405,18 +416,28 @@
         }
 
         .message-toast.success {
-            border-left: 4px solid #2e7d32;
+            border-left: 3px solid #2e7d32;
         }
 
         .message-toast.error {
-            border-left: 4px solid #d32f2f;
+            border-left: 3px solid #d32f2f;
         }
 
         .message-toast-text {
-            flex: 1;
-            font-size: 14px;
+            flex: 0 0 auto !important;
+            font-size: 13px !important;
             color: #333;
-            line-height: 1.4;
+            line-height: 1.3 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            max-width: 180px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            max-height: 22px !important;
+            display: inline-block !important;
+            vertical-align: middle !important;
         }
 
         .message-toast.success .message-toast-text {
@@ -428,19 +449,23 @@
         }
 
         .message-toast-close {
-            background: none;
-            border: none;
-            font-size: 20px;
+            background: none !important;
+            border: none !important;
+            font-size: 16px !important;
             color: #999;
             cursor: pointer;
-            padding: 0;
-            width: 20px;
-            height: 20px;
-            display: flex;
+            padding: 0 !important;
+            width: 16px !important;
+            height: 16px !important;
+            min-width: 16px !important;
+            max-width: 16px !important;
+            display: flex !important;
             align-items: center;
             justify-content: center;
-            line-height: 1;
+            line-height: 1 !important;
             transition: color 0.2s;
+            flex-shrink: 0 !important;
+            margin: 0 !important;
         }
 
         .message-toast-close:hover {
@@ -1884,7 +1909,7 @@
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(code).then(function() {
                     // Show success toast message
-                    showToastMessage('Family code copied to clipboard!', 'success');
+                    showToastMessage('Code copied!', 'success');
                 }).catch(function(err) {
                     console.error('Failed to copy:', err);
                     showToastMessage('Failed to copy code. Please copy manually: ' + code, 'error');
@@ -1913,7 +1938,7 @@
                     
                     if (successful) {
                         // Show success toast message
-                        showToastMessage('Family code copied to clipboard!', 'success');
+                        showToastMessage('Code copied!', 'success');
                         return false;
                     } else {
                         showToastMessage('Failed to copy code. Please copy manually: ' + code, 'error');
@@ -2101,6 +2126,18 @@
             
             toast.className = 'message-toast ' + type;
             toast.querySelector('.message-toast-text').textContent = message;
+            
+            // Force compact sizing
+            toast.style.height = 'auto';
+            toast.style.maxHeight = '45px';
+            toast.style.minHeight = 'auto';
+            toast.style.width = 'auto';
+            toast.style.maxWidth = '220px';
+            toast.style.padding = '8px 12px';
+            toast.style.display = 'inline-flex';
+            toast.style.flexDirection = 'row';
+            toast.style.alignItems = 'center';
+            
             toast.classList.add('show');
             
             // Auto-dismiss after 5 seconds
@@ -3462,14 +3499,6 @@
                         <button type="button" class="modal-btn modal-btn-cancel" onclick="closeConfirmModal();">Cancel</button>
                         <button type="button" id="modalConfirmBtn" class="modal-btn modal-btn-confirm" onclick="confirmModalAction();">Confirm</button>
                     </div>
-                </div>
-            </div>
-
-            <!-- Toast Message -->
-            <div id="messageToast" class="message-toast">
-                <div class="message-toast-content">
-                    <span class="message-toast-text"></span>
-                    <button type="button" class="message-toast-close" onclick="closeToast();" title="Close">&#215;</button>
                 </div>
             </div>
 

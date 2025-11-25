@@ -706,6 +706,78 @@
             margin-top: 5px;
             display: block;
         }
+
+        /* No Family Message */
+        .no-family-message {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin: 30px 0;
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .no-family-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background-color: #ff9800;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.3);
+        }
+
+        .no-family-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #e65100;
+            margin-bottom: 15px;
+        }
+
+        .no-family-text {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .no-family-button {
+            display: inline-block;
+            padding: 14px 30px;
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
+        }
+
+        .no-family-button:hover {
+            background: linear-gradient(135deg, #f57c00 0%, #ff9800 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(255, 152, 0, 0.4);
+        }
     </style>
     <script>
         // Message functions
@@ -785,6 +857,15 @@
             }
         }
         
+        // Set no family icon using Unicode to avoid encoding issues
+        document.addEventListener('DOMContentLoaded', function() {
+            var noFamilyIcon = document.getElementById('noFamilyIcon');
+            if (noFamilyIcon) {
+                // Family icon: U+1F46A (👪) - using Unicode escape
+                noFamilyIcon.textContent = String.fromCharCode(0xD83D, 0xDC6A);
+            }
+        });
+
         // Delete confirmation
         function confirmDeleteRewardFromButton(buttonElement) {
             var rewardId = buttonElement.getAttribute('data-reward-id');
@@ -878,7 +959,20 @@
                 <asp:Button ID="btnCreateReward" runat="server" Text="+ Create Reward" CssClass="btn-create" OnClientClick="openCreateModal(); return false;" UseSubmitBehavior="false" />
             </div>
 
+            <!-- No Family Message -->
+            <asp:Panel ID="pnlNoFamily" runat="server" Visible="false">
+                <div class="no-family-message">
+                    <div class="no-family-icon" id="noFamilyIcon"></div>
+                    <div class="no-family-title">Family Required</div>
+                    <div class="no-family-text">
+                        You need to be part of a family to access Rewards. Create a new family or join an existing one to start creating rewards for your children.
+                    </div>
+                    <a href="Family.aspx" class="no-family-button">Go to Family Page</a>
+                </div>
+            </asp:Panel>
+
             <!-- Search and Filter -->
+            <asp:Panel ID="pnlSearchFilter" runat="server">
             <div class="search-filter-bar">
                 <div class="search-box">
                     <input type="text" id="txtSearch" placeholder="Search rewards..." onkeyup="filterRewards()" />
@@ -893,6 +987,7 @@
                     </select>
                 </div>
             </div>
+            </asp:Panel>
 
             <!-- Rewards List -->
             <asp:Panel ID="pnlRewards" runat="server">

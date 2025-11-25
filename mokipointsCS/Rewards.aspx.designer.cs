@@ -87,6 +87,24 @@ namespace mokipointsCS
         protected global::System.Web.UI.WebControls.Panel pnlEmpty;
 
         /// <summary>
+        /// pnlNoFamily control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Panel pnlNoFamily;
+
+        /// <summary>
+        /// pnlSearchFilter control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Panel pnlSearchFilter;
+
+        /// <summary>
         /// txtCreateName control.
         /// </summary>
         /// <remarks>

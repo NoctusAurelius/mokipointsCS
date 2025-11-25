@@ -32,7 +32,9 @@ namespace mokipointsCS
                     return;
                 }
 
-                // Set user name
+                int userId = Convert.ToInt32(Session["UserId"]);
+
+                // Set user name - load from session or database
                 if (Session["FirstName"] != null)
                 {
                     litUserName.Text = Session["FirstName"].ToString();
@@ -41,12 +43,28 @@ namespace mokipointsCS
                         litUserName.Text += " " + Session["LastName"].ToString();
                     }
                 }
+                else
+                {
+                    // Fallback: Load from database if session is missing
+                    var userInfo = AuthenticationHelper.GetUserById(userId);
+                    if (userInfo != null)
+                    {
+                        string firstName = userInfo["FirstName"].ToString();
+                        string lastName = userInfo["LastName"].ToString();
+                        Session["FirstName"] = firstName;
+                        Session["LastName"] = lastName;
+                        litUserName.Text = firstName + " " + lastName;
+                    }
+                }
 
                 // Set navigation based on role
                 SetNavigation(userRole);
 
                 if (!IsPostBack)
                 {
+                    // Load profile picture
+                    LoadProfilePicture(userId);
+                    
                     LoadOrderHistory();
                 }
             }
@@ -246,6 +264,58 @@ namespace mokipointsCS
             txtStartDate.Text = "";
             txtEndDate.Text = "";
             LoadOrderHistory();
+        }
+
+        protected void LoadProfilePicture(int userId)
+        {
+            try
+            {
+                var userInfo = AuthenticationHelper.GetUserById(userId);
+                if (userInfo != null)
+                {
+                    string firstName = userInfo["FirstName"].ToString();
+                    string lastName = userInfo["LastName"].ToString();
+                    string initials = (firstName.Length > 0 ? firstName[0].ToString() : "") + (lastName.Length > 0 ? lastName[0].ToString() : "");
+                    
+                    // Check if ProfilePicture column exists
+                    string profilePicture = null;
+                    if (userInfo.Table.Columns.Contains("ProfilePicture"))
+                    {
+                        profilePicture = (userInfo["ProfilePicture"] != null && userInfo["ProfilePicture"] != DBNull.Value) ? userInfo["ProfilePicture"].ToString() : null;
+                    }
+                    
+                    // Load profile picture if exists
+                    if (!string.IsNullOrEmpty(profilePicture))
+                    {
+                        string picturePath = Server.MapPath("~/Images/ProfilePictures/" + profilePicture);
+                        if (System.IO.File.Exists(picturePath))
+                        {
+                            imgProfilePicture.ImageUrl = "~/Images/ProfilePictures/" + profilePicture;
+                            imgProfilePicture.Visible = true;
+                            litProfilePlaceholder.Visible = false;
+                            return;
+                        }
+                    }
+                    
+                    // Show placeholder with initials
+                    string userRole = Session["UserRole"]?.ToString() ?? "";
+                    string gradientColor = userRole == "PARENT" ? "#0066CC 0%, #0052a3 100%" : "#FF6600 0%, #e55a00 100%";
+                    litProfilePlaceholder.Text = string.Format(
+                        "<div class=\"profile-avatar-placeholder\">{0}</div>",
+                        string.IsNullOrEmpty(initials) ? (userRole == "PARENT" ? "P" : "C") : initials.ToUpper());
+                    litProfilePlaceholder.Visible = true;
+                    imgProfilePicture.Visible = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("LoadProfilePicture error: " + ex.Message);
+                // Show default placeholder on error
+                string userRole = Session["UserRole"]?.ToString() ?? "";
+                litProfilePlaceholder.Text = "<div class=\"profile-avatar-placeholder\">" + (userRole == "PARENT" ? "P" : "C") + "</div>";
+                litProfilePlaceholder.Visible = true;
+                imgProfilePicture.Visible = false;
+            }
         }
 
         private void ShowError(string message)

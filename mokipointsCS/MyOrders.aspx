@@ -127,6 +127,48 @@
             border-radius: 2px;
         }
         
+        /* Profile Picture Avatar */
+        .profile-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+        }
+        
+        .profile-avatar:hover {
+            border-color: #FF6600;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(255, 102, 0, 0.3);
+        }
+        
+        .profile-avatar-placeholder {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            background: linear-gradient(135deg, #FF6600 0%, #e55a00 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+            text-decoration: none;
+        }
+        
+        .profile-avatar-placeholder:hover {
+            border-color: #FF6600;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(255, 102, 0, 0.3);
+        }
+        
         /* Container */
         .container {
             max-width: 1000px;
@@ -655,19 +697,20 @@
                     <span class="moki">MOKI</span><span class="points"> POINTS</span>
                 </div>
                 <div class="user-info">
-                    <div class="nav-links">
-                        <a href="ChildDashboard.aspx">Dashboard</a>
-                        <a href="ChildTasks.aspx">Tasks</a>
-                        <a href="RewardShop.aspx">Shop</a>
-                        <a href="Cart.aspx">Cart</a>
-                        <a href="MyOrders.aspx" class="active">My Orders</a>
-                        <a href="OrderHistory.aspx">Order History</a>
-                        <a href="PointsHistory.aspx">Points</a>
+                    <div class="nav-links" style="display: flex; gap: 20px; align-items: center; margin-right: 20px;">
+                        <a href="ChildDashboard.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Dashboard</a>
+                        <a href="Family.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Family</a>
+                        <a href="ChildTasks.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Tasks</a>
+                        <a href="PointsHistory.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Points</a>
+                        <a href="RewardShop.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Shop</a>
+                        <a href="Cart.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Cart</a>
+                        <a href="MyOrders.aspx" class="active" style="color: #0066CC; text-decoration: none; font-weight: 500; font-size: 16px;">My Orders</a>
                     </div>
-                    <div class="points-display-header">
-                        <asp:Literal ID="litPointsBalance" runat="server"></asp:Literal> Points
-                    </div>
-                    <span class="user-name">Hi, <asp:Literal ID="litUserName" runat="server"></asp:Literal>!</span>
+                    <a href="Profile.aspx" style="text-decoration: none; display: flex; align-items: center;">
+                        <asp:Image ID="imgProfilePicture" runat="server" CssClass="profile-avatar" Visible="false" />
+                        <asp:Literal ID="litProfilePlaceholder" runat="server"></asp:Literal>
+                    </a>
+                    <span class="user-name"><asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
                     <a href="Settings.aspx" class="btn-settings" title="Settings">
                         <div class="hamburger-icon">
                             <div class="hamburger-line"></div>
@@ -683,6 +726,7 @@
         <div class="container">
             <div class="page-header">
                 <h1 class="page-title">My Orders</h1>
+                <a href="OrderHistory.aspx" class="btn btn-success" style="text-decoration: none;">Order History</a>
             </div>
 
             <!-- Filter Bar -->

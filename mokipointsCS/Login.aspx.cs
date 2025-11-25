@@ -142,6 +142,8 @@ namespace mokipointsCS
                     {
                         string firstName = userInfo["FirstName"].ToString();
                         string lastName = userInfo["LastName"].ToString();
+                        Session["FirstName"] = firstName;
+                        Session["LastName"] = lastName;
                         Session["UserName"] = firstName + " " + lastName;
                         Session["UserRole"] = userInfo["Role"].ToString();
                     }

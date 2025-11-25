@@ -324,7 +324,7 @@
                         <asp:Image ID="imgProfilePicture" runat="server" CssClass="profile-avatar" Visible="false" />
                         <asp:Literal ID="litProfilePlaceholder" runat="server"></asp:Literal>
                     </a>
-                    <span class="user-name">Welcome, <asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
+                    <span class="user-name"><asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
                     <a href="Settings.aspx" class="btn-settings" title="Settings">
                         <div class="hamburger-icon">
                             <div class="hamburger-line"></div>

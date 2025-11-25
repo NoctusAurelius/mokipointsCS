@@ -442,6 +442,20 @@ namespace mokipointsCS
                         )
                         CREATE INDEX IX_FamilyMembers_FamilyId ON [dbo].[FamilyMembers]([FamilyId])
                         CREATE INDEX IX_FamilyMembers_UserId ON [dbo].[FamilyMembers]([UserId])
+                    END
+                    ELSE
+                    BEGIN
+                        -- Migration: Rename CreatedDate to JoinedDate if it exists
+                        IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FamilyMembers]') AND name = 'CreatedDate')
+                        AND NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FamilyMembers]') AND name = 'JoinedDate')
+                        BEGIN
+                            EXEC sp_rename '[dbo].[FamilyMembers].[CreatedDate]', 'JoinedDate', 'COLUMN';
+                        END
+                        -- Add JoinedDate if it doesn't exist
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FamilyMembers]') AND name = 'JoinedDate')
+                        BEGIN
+                            ALTER TABLE [dbo].[FamilyMembers] ADD [JoinedDate] DATETIME NOT NULL DEFAULT GETDATE();
+                        END
                     END";
 
                 // Create Tasks table (Enhanced with new fields)
@@ -862,6 +876,7 @@ namespace mokipointsCS
                             [ImageUrl] NVARCHAR(500) NULL,
                             [IsActive] BIT NOT NULL DEFAULT 1,
                             [IsDeleted] BIT NOT NULL DEFAULT 0,
+                            [AvailabilityStatus] NVARCHAR(50) NOT NULL DEFAULT 'Available',
                             [CreatedBy] INT NOT NULL,
                             [CreatedDate] DATETIME NOT NULL DEFAULT GETDATE(),
                             [UpdatedDate] DATETIME NULL,
@@ -872,6 +887,14 @@ namespace mokipointsCS
                         )
                         CREATE INDEX IX_Rewards_FamilyId_IsActive ON [dbo].[Rewards]([FamilyId], [IsActive]) WHERE [IsDeleted] = 0
                         CREATE INDEX IX_Rewards_Category ON [dbo].[Rewards]([Category]) WHERE [IsDeleted] = 0
+                    END
+                    ELSE
+                    BEGIN
+                        -- Add AvailabilityStatus column if it doesn't exist
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Rewards]') AND name = 'AvailabilityStatus')
+                        BEGIN
+                            ALTER TABLE [dbo].[Rewards] ADD [AvailabilityStatus] NVARCHAR(50) NOT NULL DEFAULT 'Available';
+                        END
                     END";
                 using (SqlCommand cmd = new SqlCommand(createRewardsTable, conn))
                 {
@@ -1136,6 +1159,101 @@ namespace mokipointsCS
                         END
                     END";
                 using (SqlCommand cmd = new SqlCommand(updateUsersTablePointsCap, conn))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+
+                // ============================================
+                // FAMILY CHAT SYSTEM TABLES
+                // ============================================
+
+                // FamilyMessages table
+                string createFamilyMessagesTable = @"
+                    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[FamilyMessages]') AND type in (N'U'))
+                    BEGIN
+                        CREATE TABLE [dbo].[FamilyMessages] (
+                            [Id] INT IDENTITY(1,1) PRIMARY KEY,
+                            [FamilyId] INT NOT NULL,
+                            [UserId] INT NULL, -- NULL for system messages
+                            [MessageType] NVARCHAR(20) NOT NULL, -- 'Text', 'Image', 'GIF', 'System'
+                            [MessageText] NVARCHAR(MAX) NULL,
+                            [ImagePath] NVARCHAR(500) NULL,
+                            [GIFUrl] NVARCHAR(500) NULL,
+                            [ReplyToMessageId] INT NULL,
+                            [SystemEventType] NVARCHAR(50) NULL, -- 'TaskCompleted', 'TaskFailed', 'RewardAdded'
+                            [SystemEventData] NVARCHAR(MAX) NULL, -- JSON data for system events
+                            [CreatedDate] DATETIME NOT NULL DEFAULT GETDATE(),
+                            [IsDeleted] BIT NOT NULL DEFAULT 0,
+                            FOREIGN KEY ([FamilyId]) REFERENCES [dbo].[Families]([Id]),
+                            FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]),
+                            FOREIGN KEY ([ReplyToMessageId]) REFERENCES [dbo].[FamilyMessages]([Id])
+                        )
+                        CREATE INDEX IX_FamilyMessages_FamilyId ON [dbo].[FamilyMessages]([FamilyId])
+                        CREATE INDEX IX_FamilyMessages_CreatedDate ON [dbo].[FamilyMessages]([CreatedDate])
+                        CREATE INDEX IX_FamilyMessages_UserId ON [dbo].[FamilyMessages]([UserId])
+                        CREATE INDEX IX_FamilyMessages_IsDeleted ON [dbo].[FamilyMessages]([IsDeleted])
+                    END
+                    ELSE
+                    BEGIN
+                        -- Migration: Make UserId nullable for system messages
+                        IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[FamilyMessages]') AND name = 'UserId' AND is_nullable = 0)
+                        BEGIN
+                            -- Drop foreign key constraint first
+                            DECLARE @FKName NVARCHAR(200)
+                            SELECT TOP 1 @FKName = fk.name
+                            FROM sys.foreign_keys fk
+                            INNER JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+                            INNER JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id
+                            WHERE fk.parent_object_id = OBJECT_ID(N'[dbo].[FamilyMessages]')
+                              AND c.name = 'UserId'
+                            
+                            IF @FKName IS NOT NULL
+                            BEGIN
+                                DECLARE @DropFKSQL NVARCHAR(MAX) = 'ALTER TABLE [dbo].[FamilyMessages] DROP CONSTRAINT [' + @FKName + ']'
+                                EXEC sp_executesql @DropFKSQL
+                            END
+                            
+                            -- Make column nullable
+                            ALTER TABLE [dbo].[FamilyMessages] ALTER COLUMN [UserId] INT NULL
+                            
+                            -- Re-add foreign key constraint (allows NULL)
+                            -- Check if foreign key exists on UserId column specifically
+                            IF NOT EXISTS (
+                                SELECT 1 FROM sys.foreign_keys fk
+                                INNER JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+                                INNER JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id
+                                WHERE fk.parent_object_id = OBJECT_ID(N'[dbo].[FamilyMessages]')
+                                  AND fk.referenced_object_id = OBJECT_ID(N'[dbo].[Users]')
+                                  AND c.name = 'UserId'
+                            )
+                            BEGIN
+                                ALTER TABLE [dbo].[FamilyMessages] ADD FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id])
+                            END
+                        END
+                    END";
+                using (SqlCommand cmd = new SqlCommand(createFamilyMessagesTable, conn))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+
+                // FamilyMessageReactions table
+                string createFamilyMessageReactionsTable = @"
+                    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[FamilyMessageReactions]') AND type in (N'U'))
+                    BEGIN
+                        CREATE TABLE [dbo].[FamilyMessageReactions] (
+                            [Id] INT IDENTITY(1,1) PRIMARY KEY,
+                            [MessageId] INT NOT NULL,
+                            [UserId] INT NOT NULL,
+                            [ReactionType] NVARCHAR(20) NOT NULL, -- 'Like', 'Love', 'Haha', 'Sad', 'Angry'
+                            [CreatedDate] DATETIME NOT NULL DEFAULT GETDATE(),
+                            FOREIGN KEY ([MessageId]) REFERENCES [dbo].[FamilyMessages]([Id]),
+                            FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]),
+                            UNIQUE ([MessageId], [UserId], [ReactionType])
+                        )
+                        CREATE INDEX IX_FamilyMessageReactions_MessageId ON [dbo].[FamilyMessageReactions]([MessageId])
+                        CREATE INDEX IX_FamilyMessageReactions_UserId ON [dbo].[FamilyMessageReactions]([UserId])
+                    END";
+                using (SqlCommand cmd = new SqlCommand(createFamilyMessageReactionsTable, conn))
                 {
                     cmd.ExecuteNonQuery();
                 }

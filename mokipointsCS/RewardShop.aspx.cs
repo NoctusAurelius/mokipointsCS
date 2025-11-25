@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.IO;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
@@ -35,22 +36,33 @@ namespace mokipointsCS
                     return;
                 }
 
-                // Set user name
-                if (Session["UserName"] != null)
+                // Set user name - load from session or database
+                if (Session["FirstName"] != null)
                 {
-                    litUserName.Text = Session["UserName"].ToString();
+                    litUserName.Text = Session["FirstName"].ToString();
                 }
                 else
                 {
-                    litUserName.Text = "Child";
+                    // Fallback: Load from database if session is missing
+                    var userInfo = AuthenticationHelper.GetUserById(userId);
+                    if (userInfo != null)
+                    {
+                        string firstName = userInfo["FirstName"].ToString();
+                        Session["FirstName"] = firstName;
+                        Session["LastName"] = userInfo["LastName"].ToString();
+                        litUserName.Text = firstName;
+                    }
+                    else
+                    {
+                        litUserName.Text = "Child";
+                    }
                 }
-
-                // Display points balance
-                int pointsBalance = PointHelper.GetChildBalance(userId);
-                litPointsBalance.Text = pointsBalance.ToString();
 
                 if (!IsPostBack)
                 {
+                    // Load profile picture
+                    LoadProfilePicture(userId);
+                    
                     LoadRewards(familyId.Value, userId);
                 }
             }
@@ -68,7 +80,7 @@ namespace mokipointsCS
             {
                 int pointsBalance = PointHelper.GetChildBalance(userId);
                 
-                DataTable rewards = RewardHelper.GetFamilyRewards(familyId, true);
+                DataTable rewards = RewardHelper.GetFamilyRewards(familyId, true, forChild: true);
 
                 if (rewards.Rows.Count > 0)
                 {
@@ -121,24 +133,48 @@ namespace mokipointsCS
                 int rewardId = Convert.ToInt32(row["Id"]);
                 int pointCost = Convert.ToInt32(row["PointCost"]);
                 int userId = Convert.ToInt32(Session["UserId"]);
+                string availabilityStatus = row["AvailabilityStatus"] != DBNull.Value ? row["AvailabilityStatus"].ToString() : "Available";
 
                 Button btnAddToCart = (Button)e.Item.FindControl("btnAddToCart");
+                Literal litOutOfStockBadge = (Literal)e.Item.FindControl("litOutOfStockBadge");
+                System.Web.UI.HtmlControls.HtmlGenericControl cardDiv = (System.Web.UI.HtmlControls.HtmlGenericControl)e.Item.FindControl("rewardCard");
 
-                // Check if child can afford this reward
-                int pointsBalance = PointHelper.GetChildBalance(userId);
-                if (pointsBalance < pointCost)
+                // Check if reward is out of stock
+                if (availabilityStatus == "OutOfStock")
                 {
                     if (btnAddToCart != null)
                     {
                         btnAddToCart.Enabled = false;
-                        btnAddToCart.Text = "Not Enough Points";
+                        btnAddToCart.Text = "Out of Stock";
                     }
-                    // Add unaffordable class to card
-                    System.Web.UI.HtmlControls.HtmlGenericControl cardDiv = (System.Web.UI.HtmlControls.HtmlGenericControl)e.Item.FindControl("rewardCard");
+                    if (litOutOfStockBadge != null)
+                    {
+                        litOutOfStockBadge.Text = "<span class='badge badge-outofstock' style='display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background-color: #fff3cd; color: #856404; margin-left: 8px;'>Out of Stock</span>";
+                    }
+                    // Add out-of-stock class to card
                     if (cardDiv != null)
                     {
                         string currentClass = cardDiv.Attributes["class"] ?? "";
-                        cardDiv.Attributes["class"] = currentClass + " unaffordable";
+                        cardDiv.Attributes["class"] = currentClass + " out-of-stock";
+                    }
+                }
+                else
+                {
+                    // Check if child can afford this reward (only if not out of stock)
+                    int pointsBalance = PointHelper.GetChildBalance(userId);
+                    if (pointsBalance < pointCost)
+                    {
+                        if (btnAddToCart != null)
+                        {
+                            btnAddToCart.Enabled = false;
+                            btnAddToCart.Text = "Not Enough Points";
+                        }
+                        // Add unaffordable class to card
+                        if (cardDiv != null)
+                        {
+                            string currentClass = cardDiv.Attributes["class"] ?? "";
+                            cardDiv.Attributes["class"] = currentClass + " unaffordable";
+                        }
                     }
                 }
             }
@@ -203,6 +239,55 @@ namespace mokipointsCS
         {
             ScriptManager.RegisterStartupScript(this, GetType(), "ShowError", 
                 string.Format("showMessage('error', '{0}');", message.Replace("'", "\\'")), true);
+        }
+
+        protected void LoadProfilePicture(int userId)
+        {
+            try
+            {
+                var userInfo = AuthenticationHelper.GetUserById(userId);
+                if (userInfo != null)
+                {
+                    string firstName = userInfo["FirstName"].ToString();
+                    string lastName = userInfo["LastName"].ToString();
+                    string initials = (firstName.Length > 0 ? firstName[0].ToString() : "") + (lastName.Length > 0 ? lastName[0].ToString() : "");
+                    
+                    // Check if ProfilePicture column exists
+                    string profilePicture = null;
+                    if (userInfo.Table.Columns.Contains("ProfilePicture"))
+                    {
+                        profilePicture = (userInfo["ProfilePicture"] != null && userInfo["ProfilePicture"] != DBNull.Value) ? userInfo["ProfilePicture"].ToString() : null;
+                    }
+                    
+                    // Load profile picture if exists
+                    if (!string.IsNullOrEmpty(profilePicture))
+                    {
+                        string picturePath = Server.MapPath("~/Images/ProfilePictures/" + profilePicture);
+                        if (File.Exists(picturePath))
+                        {
+                            imgProfilePicture.ImageUrl = "~/Images/ProfilePictures/" + profilePicture;
+                            imgProfilePicture.Visible = true;
+                            litProfilePlaceholder.Visible = false;
+                            return;
+                        }
+                    }
+                    
+                    // Show placeholder with initials
+                    litProfilePlaceholder.Text = string.Format(
+                        "<div class=\"profile-avatar-placeholder\">{0}</div>",
+                        string.IsNullOrEmpty(initials) ? "C" : initials.ToUpper());
+                    litProfilePlaceholder.Visible = true;
+                    imgProfilePicture.Visible = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("LoadProfilePicture error: " + ex.Message);
+                // Show default placeholder on error
+                litProfilePlaceholder.Text = "<div class=\"profile-avatar-placeholder\">C</div>";
+                litProfilePlaceholder.Visible = true;
+                imgProfilePicture.Visible = false;
+            }
         }
     }
 }

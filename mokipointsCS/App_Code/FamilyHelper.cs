@@ -528,15 +528,13 @@ namespace mokipointsCS
                         u.Email,
                         u.ProfilePicture,
                         u.IsBanned,
-                        (SELECT ISNULL(SUM(CASE WHEN TransactionType = 'Earned' THEN Points ELSE -Points END), 0) 
-                         FROM [dbo].[PointTransactions] pt 
-                         WHERE pt.UserId = u.Id) AS TotalPoints,
-                        (SELECT COUNT(*) FROM [dbo].[TaskAssignments] ta 
-                         INNER JOIN [dbo].[TaskReviews] tr ON ta.Id = tr.TaskAssignmentId 
-                         WHERE ta.UserId = u.Id AND tr.IsFailed = 0 AND ta.Status = 'Reviewed') AS CompletedTasks,
-                        (SELECT COUNT(*) FROM [dbo].[TaskAssignments] ta 
-                         INNER JOIN [dbo].[TaskReviews] tr ON ta.Id = tr.TaskAssignmentId 
-                         WHERE ta.UserId = u.Id AND tr.IsFailed = 1 AND ta.Status = 'Reviewed') AS FailedTasks
+                        ISNULL(u.Points, 0) AS TotalPoints,
+                        (SELECT COUNT(*) FROM [dbo].[TaskReviews] tr 
+                         INNER JOIN [dbo].[TaskAssignments] ta ON tr.TaskAssignmentId = ta.Id 
+                         WHERE ta.UserId = u.Id AND tr.IsFailed = 0) AS CompletedTasks,
+                        (SELECT COUNT(*) FROM [dbo].[TaskReviews] tr 
+                         INNER JOIN [dbo].[TaskAssignments] ta ON tr.TaskAssignmentId = ta.Id 
+                         WHERE ta.UserId = u.Id AND tr.IsFailed = 1) AS FailedTasks
                     FROM [dbo].[FamilyMembers] fm
                     INNER JOIN [dbo].[Users] u ON fm.UserId = u.Id
                     WHERE fm.FamilyId = @FamilyId 
@@ -621,6 +619,323 @@ namespace mokipointsCS
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("RemoveChildFromFamily error: " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets the family owner ID
+        /// </summary>
+        public static int? GetFamilyOwnerId(int familyId)
+        {
+            try
+            {
+                string query = @"
+                    SELECT OwnerId FROM [dbo].[Families]
+                    WHERE Id = @FamilyId";
+
+                object ownerId = DatabaseHelper.ExecuteScalar(query,
+                    new SqlParameter("@FamilyId", familyId));
+
+                if (ownerId != null && ownerId != DBNull.Value)
+                {
+                    return Convert.ToInt32(ownerId);
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("GetFamilyOwnerId error: " + ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Gets all family members with their details (for sidebar display)
+        /// </summary>
+        public static DataTable GetFamilyMembers(int familyId)
+        {
+            try
+            {
+                string query = @"
+                    SELECT 
+                        u.Id,
+                        u.FirstName,
+                        u.LastName,
+                        u.Email,
+                        u.ProfilePicture,
+                        u.Role,
+                        fm.JoinedDate AS JoinDate,
+                        f.OwnerId,
+                        CASE WHEN f.OwnerId = u.Id THEN 1 ELSE 0 END AS IsOwner
+                    FROM [dbo].[FamilyMembers] fm
+                    INNER JOIN [dbo].[Users] u ON fm.UserId = u.Id
+                    INNER JOIN [dbo].[Families] f ON fm.FamilyId = f.Id
+                    WHERE fm.FamilyId = @FamilyId 
+                      AND fm.IsActive = 1 
+                      AND u.IsActive = 1
+                    ORDER BY 
+                        CASE WHEN f.OwnerId = u.Id THEN 0 ELSE 1 END,
+                        u.Role DESC,
+                        fm.JoinedDate ASC";
+
+                return DatabaseHelper.ExecuteQuery(query, new SqlParameter("@FamilyId", familyId));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("GetFamilyMembers error: " + ex.Message);
+                return new DataTable();
+            }
+        }
+
+        /// <summary>
+        /// Gets children with stats for hover tooltip
+        /// </summary>
+        public static DataTable GetChildrenWithStats(int familyId)
+        {
+            try
+            {
+                int? ownerId = GetFamilyOwnerId(familyId);
+                if (!ownerId.HasValue)
+                {
+                    return new DataTable();
+                }
+
+                string query = @"
+                    SELECT
+                        u.Id,
+                        u.FirstName,
+                        u.LastName,
+                        u.ProfilePicture,
+                        ISNULL(u.Points, 0) AS TotalPoints,
+                        (SELECT COUNT(*) FROM [dbo].[TaskReviews] tr
+                         WHERE tr.ReviewedBy = @FamilyOwnerId AND tr.TaskAssignmentId IN (SELECT Id FROM [dbo].[TaskAssignments] WHERE UserId = u.Id) AND tr.IsFailed = 0) AS CompletedTasks,
+                        (SELECT COUNT(*) FROM [dbo].[TaskReviews] tr
+                         WHERE tr.ReviewedBy = @FamilyOwnerId AND tr.TaskAssignmentId IN (SELECT Id FROM [dbo].[TaskAssignments] WHERE UserId = u.Id) AND tr.IsFailed = 1) AS FailedTasks
+                    FROM [dbo].[FamilyMembers] fm
+                    INNER JOIN [dbo].[Users] u ON fm.UserId = u.Id
+                    WHERE fm.FamilyId = @FamilyId
+                      AND fm.Role = 'CHILD'
+                      AND fm.IsActive = 1
+                      AND u.IsActive = 1
+                    ORDER BY u.FirstName, u.LastName";
+
+                return DatabaseHelper.ExecuteQuery(query,
+                    new SqlParameter("@FamilyId", familyId),
+                    new SqlParameter("@FamilyOwnerId", ownerId.Value));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("GetChildrenWithStats error: " + ex.Message);
+                return new DataTable();
+            }
+        }
+
+        /// <summary>
+        /// Kicks a parent from the family (only owner can do this)
+        /// </summary>
+        public static bool KickParent(int familyId, int parentId, int ownerId)
+        {
+            try
+            {
+                // Verify current user is owner
+                if (!IsFamilyOwner(familyId, ownerId))
+                {
+                    System.Diagnostics.Debug.WriteLine("KickParent: User is not owner");
+                    return false;
+                }
+
+                // Verify parent is not the owner
+                if (parentId == ownerId)
+                {
+                    System.Diagnostics.Debug.WriteLine("KickParent: Cannot kick owner");
+                    return false;
+                }
+
+                // Verify parent is in the family
+                if (!IsFamilyMember(familyId, parentId))
+                {
+                    System.Diagnostics.Debug.WriteLine("KickParent: Parent not in family");
+                    return false;
+                }
+
+                // Verify user is a parent
+                var userInfo = AuthenticationHelper.GetUserById(parentId);
+                if (userInfo == null || userInfo["Role"].ToString() != "PARENT")
+                {
+                    System.Diagnostics.Debug.WriteLine("KickParent: User is not a parent");
+                    return false;
+                }
+
+                // Deactivate family membership
+                string query = @"
+                    UPDATE [dbo].[FamilyMembers]
+                    SET IsActive = 0
+                    WHERE UserId = @ParentId AND FamilyId = @FamilyId";
+
+                int rowsAffected = DatabaseHelper.ExecuteNonQuery(query,
+                    new SqlParameter("@ParentId", parentId),
+                    new SqlParameter("@FamilyId", familyId));
+
+                System.Diagnostics.Debug.WriteLine(string.Format("KickParent: Removed parent {0} from family {1}, rows affected: {2}", parentId, familyId, rowsAffected));
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("KickParent error: " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Changes the family code (only owner can do this)
+        /// </summary>
+        public static bool ChangeFamilyCode(int familyId, int ownerId)
+        {
+            try
+            {
+                // Verify current user is owner
+                if (!IsFamilyOwner(familyId, ownerId))
+                {
+                    System.Diagnostics.Debug.WriteLine("ChangeFamilyCode: User is not owner");
+                    return false;
+                }
+
+                // Generate new unique family code
+                string newCode = GenerateFamilyCode();
+                System.Diagnostics.Debug.WriteLine(string.Format("ChangeFamilyCode: Generated new code {0} for family {1}", newCode, familyId));
+
+                // Update family code
+                string query = @"
+                    UPDATE [dbo].[Families]
+                    SET FamilyCode = @FamilyCode
+                    WHERE Id = @FamilyId AND OwnerId = @OwnerId";
+
+                int rowsAffected = DatabaseHelper.ExecuteNonQuery(query,
+                    new SqlParameter("@FamilyCode", newCode),
+                    new SqlParameter("@FamilyId", familyId),
+                    new SqlParameter("@OwnerId", ownerId));
+
+                System.Diagnostics.Debug.WriteLine(string.Format("ChangeFamilyCode: Updated family code, rows affected: {0}", rowsAffected));
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("ChangeFamilyCode error: " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Checks if owner can leave the family (no children)
+        /// </summary>
+        public static bool CanOwnerLeave(int familyId)
+        {
+            try
+            {
+                int childrenCount = GetChildrenCount(familyId);
+                System.Diagnostics.Debug.WriteLine(string.Format("CanOwnerLeave: Family {0} has {1} children", familyId, childrenCount));
+                return childrenCount == 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("CanOwnerLeave error: " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets the first parent by join date (for auto-transfer ownership)
+        /// </summary>
+        public static int? GetFirstParentByJoinDate(int familyId)
+        {
+            try
+            {
+                string query = @"
+                    SELECT TOP 1 u.Id
+                    FROM [dbo].[FamilyMembers] fm
+                    INNER JOIN [dbo].[Users] u ON fm.UserId = u.Id
+                    WHERE fm.FamilyId = @FamilyId 
+                      AND u.Role = 'PARENT'
+                      AND fm.IsActive = 1
+                      AND u.IsActive = 1
+                    ORDER BY fm.CreatedDate ASC";
+
+                object parentId = DatabaseHelper.ExecuteScalar(query,
+                    new SqlParameter("@FamilyId", familyId));
+
+                if (parentId != null && parentId != DBNull.Value)
+                {
+                    return Convert.ToInt32(parentId);
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("GetFirstParentByJoinDate error: " + ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Owner leaves family (with auto-transfer if needed)
+        /// </summary>
+        public static bool OwnerLeaveFamily(int familyId, int ownerId)
+        {
+            try
+            {
+                // Verify user is owner
+                if (!IsFamilyOwner(familyId, ownerId))
+                {
+                    System.Diagnostics.Debug.WriteLine("OwnerLeaveFamily: User is not owner");
+                    return false;
+                }
+
+                // Check if there are children
+                int childrenCount = GetChildrenCount(familyId);
+                if (childrenCount > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine(string.Format("OwnerLeaveFamily: Cannot leave - family has {0} children", childrenCount));
+                    return false;
+                }
+
+                // Get first parent by join date for auto-transfer
+                int? newOwnerId = GetFirstParentByJoinDate(familyId);
+                
+                if (newOwnerId.HasValue && newOwnerId.Value != ownerId)
+                {
+                    // Transfer ownership to first parent
+                    System.Diagnostics.Debug.WriteLine(string.Format("OwnerLeaveFamily: Auto-transferring ownership to parent {0}", newOwnerId.Value));
+                    if (!TransferOwnership(familyId, newOwnerId.Value, ownerId))
+                    {
+                        System.Diagnostics.Debug.WriteLine("OwnerLeaveFamily: Failed to transfer ownership");
+                        return false;
+                    }
+                }
+                else if (!newOwnerId.HasValue)
+                {
+                    // No other parents - family will be orphaned (this shouldn't happen, but handle it)
+                    System.Diagnostics.Debug.WriteLine("OwnerLeaveFamily: WARNING - No other parents found, family will be orphaned");
+                }
+
+                // Deactivate owner's family membership
+                string query = @"
+                    UPDATE [dbo].[FamilyMembers]
+                    SET IsActive = 0
+                    WHERE UserId = @OwnerId AND FamilyId = @FamilyId";
+
+                int rowsAffected = DatabaseHelper.ExecuteNonQuery(query,
+                    new SqlParameter("@OwnerId", ownerId),
+                    new SqlParameter("@FamilyId", familyId));
+
+                System.Diagnostics.Debug.WriteLine(string.Format("OwnerLeaveFamily: Owner {0} left family {1}, rows affected: {2}", ownerId, familyId, rowsAffected));
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("OwnerLeaveFamily error: " + ex.Message);
                 return false;
             }
         }

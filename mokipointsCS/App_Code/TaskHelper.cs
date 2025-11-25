@@ -1143,6 +1143,46 @@ namespace mokipointsCS
                         System.Diagnostics.Debug.WriteLine(string.Format("ReviewTask: Creating notification for user {0}", userId));
                         CreateNotification(userId, "Task Reviewed", notificationMessage, "TaskReviewed", taskId, taskAssignmentId);
 
+                        // Post system message to family chat
+                        try
+                        {
+                            var userInfo = AuthenticationHelper.GetUserById(userId);
+                            if (userInfo != null)
+                            {
+                                string childName = userInfo["FirstName"].ToString() + " " + userInfo["LastName"].ToString();
+                                string chatMessage = "";
+                                string systemEventType = "";
+                                
+                                if (isFailed)
+                                {
+                                    chatMessage = string.Format("{0} failed '{1}' and lost {2} points", childName, taskTitle, Math.Abs(pointsAwarded));
+                                    systemEventType = "TaskFailed";
+                                }
+                                else
+                                {
+                                    chatMessage = string.Format("{0} completed '{1}' and earned {2} points! ⭐{3}", childName, taskTitle, pointsAwarded, rating);
+                                    systemEventType = "TaskCompleted";
+                                }
+                                
+                                // Create JSON data for system event
+                                string systemEventData = string.Format("{{\"TaskId\":{0},\"TaskTitle\":\"{1}\",\"ChildId\":{2},\"ChildName\":\"{3}\",\"Points\":{4},\"Rating\":{5},\"IsFailed\":{6}}}",
+                                    taskId, 
+                                    taskTitle.Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r"), 
+                                    userId, 
+                                    childName.Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r"), 
+                                    pointsAwarded, 
+                                    isFailed ? 0 : rating, 
+                                    isFailed.ToString().ToLower());
+                                
+                                ChatHelper.PostSystemMessage(familyId, systemEventType, chatMessage, systemEventData);
+                            }
+                        }
+                        catch (Exception chatEx)
+                        {
+                            // Don't fail the review if chat message fails
+                            System.Diagnostics.Debug.WriteLine("ReviewTask: Failed to post chat message: " + chatEx.Message);
+                        }
+
                         System.Diagnostics.Debug.WriteLine(string.Format("ReviewTask: Successfully reviewed assignment {0}", taskAssignmentId));
                         return true;
                     }

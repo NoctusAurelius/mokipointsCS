@@ -456,6 +456,7 @@
                 </div>
                 <div class="user-info">
                     <div class="nav-links" style="display: flex; gap: 20px; align-items: center; margin-right: 20px;">
+                        <a href="Family.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Family</a>
                         <a href="ChildTasks.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Tasks</a>
                         <a href="PointsHistory.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Points</a>
                         <a href="RewardShop.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Shop</a>
@@ -466,7 +467,7 @@
                         <asp:Image ID="imgProfilePicture" runat="server" CssClass="profile-avatar" Visible="false" />
                         <asp:Literal ID="litProfilePlaceholder" runat="server"></asp:Literal>
                     </a>
-                    <span class="user-name">Hi, <asp:Literal ID="litUserName" runat="server"></asp:Literal>!</span>
+                    <span class="user-name"><asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
                     <a href="Settings.aspx" class="btn-settings" title="Settings">
                         <div class="hamburger-icon">
                             <div class="hamburger-line"></div>

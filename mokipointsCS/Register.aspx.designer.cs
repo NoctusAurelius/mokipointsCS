@@ -111,22 +111,22 @@ namespace mokipointsCS
         protected global::System.Web.UI.WebControls.RegularExpressionValidator revEmail;
 
         /// <summary>
-        /// ddlRole control.
+        /// hidRole control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.DropDownList ddlRole;
+        protected global::System.Web.UI.WebControls.HiddenField hidRole;
 
         /// <summary>
-        /// rfvRole control.
+        /// lblRoleError control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.RequiredFieldValidator rfvRole;
+        protected global::System.Web.UI.WebControls.Label lblRoleError;
 
         /// <summary>
         /// txtPassword control.

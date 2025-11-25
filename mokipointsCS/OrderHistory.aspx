@@ -64,6 +64,7 @@
             color: #333;
             text-decoration: none;
             font-weight: 500;
+            font-size: 16px;
         }
         
         .nav-links a:hover, .nav-links a.active {
@@ -99,9 +100,65 @@
         }
         
         .btn-settings:hover {
-            background-color: #f0f0f0;
+            background-color: #f5f5f5;
             border-color: #0066CC;
             color: #0066CC;
+        }
+        
+        .hamburger-icon {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 20px;
+        }
+        
+        .hamburger-line {
+            width: 100%;
+            height: 3px;
+            background-color: currentColor;
+            border-radius: 2px;
+        }
+        
+        /* Profile Picture Avatar */
+        .profile-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+        }
+        
+        .profile-avatar:hover {
+            border-color: #FF6600;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(255, 102, 0, 0.3);
+        }
+        
+        .profile-avatar-placeholder {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            background: linear-gradient(135deg, #FF6600 0%, #e55a00 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+            text-decoration: none;
+        }
+        
+        .profile-avatar-placeholder:hover {
+            border-color: #FF6600;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(255, 102, 0, 0.3);
         }
         
         /* Container */
@@ -490,15 +547,25 @@
         <!-- Header -->
         <div class="header">
             <div class="header-content">
-                <a href="Dashboard.aspx" class="brand">
-                    <span class="moki">MOKI</span> <span class="points">POINTS</span>
-                </a>
-                <div class="nav-links">
-                    <asp:Literal ID="litNavigation" runat="server"></asp:Literal>
+                <div class="brand">
+                    <span class="moki">MOKI</span><span class="points"> POINTS</span>
                 </div>
                 <div class="user-info">
+                    <div class="nav-links" style="display: flex; gap: 20px; align-items: center; margin-right: 20px;">
+                        <asp:Literal ID="litNavigation" runat="server"></asp:Literal>
+                    </div>
+                    <a href="Profile.aspx" style="text-decoration: none; display: flex; align-items: center;">
+                        <asp:Image ID="imgProfilePicture" runat="server" CssClass="profile-avatar" Visible="false" />
+                        <asp:Literal ID="litProfilePlaceholder" runat="server"></asp:Literal>
+                    </a>
                     <span class="user-name"><asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
-                    <a href="Settings.aspx" class="btn-settings">⚙</a>
+                    <a href="Settings.aspx" class="btn-settings" title="Settings">
+                        <div class="hamburger-icon">
+                            <div class="hamburger-line"></div>
+                            <div class="hamburger-line"></div>
+                            <div class="hamburger-line"></div>
+                        </div>
+                    </a>
                 </div>
             </div>
         </div>

@@ -118,6 +118,48 @@
             border-radius: 2px;
         }
         
+        /* Profile Picture Avatar */
+        .profile-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+        }
+        
+        .profile-avatar:hover {
+            border-color: #0066CC;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+        }
+        
+        .profile-avatar-placeholder {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+            text-decoration: none;
+        }
+        
+        .profile-avatar-placeholder:hover {
+            border-color: #0066CC;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+        }
+        
         /* Container */
         .container {
             max-width: 1200px;
@@ -632,6 +674,38 @@
             border-radius: 5px;
             font-size: 14px;
         }
+        
+        .badge-availability {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 8px;
+        }
+        
+        .badge-available {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-outofstock {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-hidden {
+            background-color: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .availability-error {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
     </style>
     <script>
         // Message functions
@@ -746,6 +820,7 @@
                 }
             });
         }
+        
     </script>
 </head>
 <body>
@@ -772,16 +847,19 @@
                     <span class="moki">MOKI</span><span class="points"> POINTS</span>
                 </div>
                 <div class="user-info">
-                    <div class="nav-links">
-                        <a href="ParentDashboard.aspx">Dashboard</a>
-                        <a href="Family.aspx">Family</a>
-                        <a href="Tasks.aspx">Tasks</a>
-                        <a href="Rewards.aspx" class="active">Rewards</a>
-                        <a href="RewardOrders.aspx">Orders</a>
-                        <a href="TaskReview.aspx">Review</a>
-                        <a href="Notifications.aspx">Notifications</a>
+                    <div class="nav-links" style="display: flex; gap: 20px; align-items: center; margin-right: 20px;">
+                        <a href="ParentDashboard.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Dashboard</a>
+                        <a href="Family.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Family</a>
+                        <a href="Tasks.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Tasks</a>
+                        <a href="TaskReview.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Review</a>
+                        <a href="Rewards.aspx" class="active" style="color: #0066CC; text-decoration: none; font-weight: 500; font-size: 16px;">Rewards</a>
+                        <a href="RewardOrders.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Orders</a>
                     </div>
-                    <span class="user-name">Welcome, <asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
+                    <a href="Profile.aspx" style="text-decoration: none; display: flex; align-items: center;">
+                        <asp:Image ID="imgProfilePicture" runat="server" CssClass="profile-avatar" Visible="false" />
+                        <asp:Literal ID="litProfilePlaceholder" runat="server"></asp:Literal>
+                    </a>
+                    <span class="user-name"><asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
                     <a href="Settings.aspx" class="btn-settings" title="Settings">
                         <div class="hamburger-icon">
                             <div class="hamburger-line"></div>
@@ -828,6 +906,7 @@
                                         <div class="reward-meta">
                                             <%# Eval("Category") != DBNull.Value && !string.IsNullOrEmpty(Eval("Category").ToString()) ? "<span class='badge badge-category'>" + Eval("Category") + "</span>" : "" %>
                                             <asp:Literal ID="litInUseBadge" runat="server"></asp:Literal>
+                                            <asp:Literal ID="litAvailabilityBadge" runat="server"></asp:Literal>
                                         </div>
                                     </div>
                                 </div>
@@ -837,6 +916,24 @@
                                 <div class="reward-points"><%# Eval("PointCost") %> points</div>
                                 
                                 <%# Eval("Description") != DBNull.Value && !string.IsNullOrEmpty(Eval("Description").ToString()) ? "<div class='reward-description'>" + Server.HtmlEncode(Eval("Description").ToString().Length > 100 ? Eval("Description").ToString().Substring(0, 100) + "..." : Eval("Description").ToString()) + "</div>" : "" %>
+                                
+                                <!-- Availability Status -->
+                                <div class="reward-availability" style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                                    <label style="display: block; margin-bottom: 5px; font-size: 12px; color: #666; font-weight: 500;">Availability Status:</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <asp:DropDownList ID="ddlAvailabilityStatus" runat="server" CssClass="form-control" 
+                                            style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;"
+                                            data-reward-id='<%# Eval("Id") %>'>
+                                            <asp:ListItem Value="Available" Text="Available"></asp:ListItem>
+                                            <asp:ListItem Value="OutOfStock" Text="Out of Stock"></asp:ListItem>
+                                            <asp:ListItem Value="Hidden" Text="Hidden"></asp:ListItem>
+                                        </asp:DropDownList>
+                                        <asp:Button ID="btnUpdateAvailability" runat="server" Text="Update" CssClass="btn-action" 
+                                            style="padding: 8px 16px; background: #0066CC; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;"
+                                            CommandName="UpdateAvailability" CommandArgument='<%# Eval("Id") %>' />
+                                    </div>
+                                    <asp:Literal ID="litAvailabilityError" runat="server"></asp:Literal>
+                                </div>
                                 
                                 <div class="reward-actions">
                                     <asp:Button ID="btnEdit" runat="server" Text="Edit" CssClass="btn-action btn-edit" 

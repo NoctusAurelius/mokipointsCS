@@ -231,7 +231,7 @@
             <asp:Label ID="lblMessage" runat="server" CssClass="message" Visible="false"></asp:Label>
             
             <div class="back-to-login">
-                <a href="Login.aspx">← Back to Login</a>
+                <a href="Login.aspx">&#8592; Back to Login</a>
             </div>
         </div>
     </form>

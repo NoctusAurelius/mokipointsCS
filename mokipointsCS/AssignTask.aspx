@@ -118,6 +118,48 @@
             border-radius: 2px;
         }
         
+        /* Profile Picture Avatar */
+        .profile-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+        }
+        
+        .profile-avatar:hover {
+            border-color: #0066CC;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+        }
+        
+        .profile-avatar-placeholder {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+            text-decoration: none;
+        }
+        
+        .profile-avatar-placeholder:hover {
+            border-color: #0066CC;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+        }
+        
         /* Container */
         .container {
             max-width: 800px;
@@ -277,13 +319,19 @@
                     <span class="moki">MOKI</span><span class="points"> POINTS</span>
                 </div>
                 <div class="user-info">
-                    <div class="nav-links">
-                        <a href="ParentDashboard.aspx">Dashboard</a>
-                        <a href="Family.aspx">Family</a>
-                        <a href="Tasks.aspx" class="active">Tasks</a>
-                        <a href="TaskReview.aspx">Review</a>
+                    <div class="nav-links" style="display: flex; gap: 20px; align-items: center; margin-right: 20px;">
+                        <a href="ParentDashboard.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Dashboard</a>
+                        <a href="Family.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Family</a>
+                        <a href="Tasks.aspx" class="active" style="color: #0066CC; text-decoration: none; font-weight: 500; font-size: 16px;">Tasks</a>
+                        <a href="TaskReview.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Review</a>
+                        <a href="Rewards.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Rewards</a>
+                        <a href="RewardOrders.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Orders</a>
                     </div>
-                    <span class="user-name">Welcome, <asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
+                    <a href="Profile.aspx" style="text-decoration: none; display: flex; align-items: center;">
+                        <asp:Image ID="imgProfilePicture" runat="server" CssClass="profile-avatar" Visible="false" />
+                        <asp:Literal ID="litProfilePlaceholder" runat="server"></asp:Literal>
+                    </a>
+                    <span class="user-name"><asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
                     <a href="Settings.aspx" class="btn-settings" title="Settings">
                         <div class="hamburger-icon">
                             <div class="hamburger-line"></div>

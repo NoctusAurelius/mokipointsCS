@@ -46,14 +46,26 @@ namespace mokipointsCS
                         LoadDashboardMetrics(userId, familyId.Value);
                     }
                     
-                    // Display user name
-                    if (Session["UserName"] != null)
+                    // Display user name - load from session or database
+                    if (Session["FirstName"] != null)
                     {
-                        litUserName.Text = Session["UserName"].ToString();
+                        litUserName.Text = Session["FirstName"].ToString();
                     }
                     else
                     {
-                        litUserName.Text = "Child";
+                        // Fallback: Load from database if session is missing
+                        var userInfo = AuthenticationHelper.GetUserById(userId);
+                        if (userInfo != null)
+                        {
+                            string firstName = userInfo["FirstName"].ToString();
+                            Session["FirstName"] = firstName;
+                            Session["LastName"] = userInfo["LastName"].ToString();
+                            litUserName.Text = firstName;
+                        }
+                        else
+                        {
+                            litUserName.Text = "Child";
+                        }
                     }
                     
                     // Load profile picture

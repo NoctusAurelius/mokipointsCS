@@ -23,8 +23,8 @@ namespace mokipointsCS
             {
                 string query = @"
                     INSERT INTO [dbo].[Rewards] 
-                    (FamilyId, Name, Description, PointCost, Category, ImageUrl, IsActive, IsDeleted, CreatedBy, CreatedDate)
-                    VALUES (@FamilyId, @Name, @Description, @PointCost, @Category, @ImageUrl, 1, 0, @CreatedBy, GETDATE())";
+                    (FamilyId, Name, Description, PointCost, Category, ImageUrl, IsActive, IsDeleted, AvailabilityStatus, CreatedBy, CreatedDate)
+                    VALUES (@FamilyId, @Name, @Description, @PointCost, @Category, @ImageUrl, 1, 0, 'Available', @CreatedBy, GETDATE())";
 
                 int rows = DatabaseHelper.ExecuteNonQuery(query,
                     new SqlParameter("@FamilyId", familyId),
@@ -36,6 +36,30 @@ namespace mokipointsCS
                     new SqlParameter("@CreatedBy", createdBy));
 
                 System.Diagnostics.Debug.WriteLine(string.Format("CreateReward: FamilyId={0}, CreatedBy={1}, Name={2}, PointCost={3}", familyId, createdBy, name, pointCost));
+                
+                // Post system message to family chat
+                if (rows > 0)
+                {
+                    try
+                    {
+                        string chatMessage = string.Format("New reward available: '{0}' for {1} points!", name, pointCost);
+                        
+                        // Create JSON data for system event
+                        string safeName = (name ?? "").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+                        string safeDescription = (description ?? "").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+                        string safeCategory = (category ?? "").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+                        string systemEventData = string.Format("{{\"RewardId\":{0},\"RewardName\":\"{1}\",\"PointCost\":{2},\"Description\":\"{3}\",\"Category\":\"{4}\"}}",
+                            -1, safeName, pointCost, safeDescription, safeCategory);
+                        
+                        ChatHelper.PostSystemMessage(familyId, "RewardAdded", chatMessage, systemEventData);
+                    }
+                    catch (Exception chatEx)
+                    {
+                        // Don't fail reward creation if chat message fails
+                        System.Diagnostics.Debug.WriteLine("CreateReward: Failed to post chat message: " + chatEx.Message);
+                    }
+                }
+                
                 return rows > 0;
             }
             catch (Exception ex)
@@ -48,19 +72,27 @@ namespace mokipointsCS
 
         /// <summary>
         /// Gets all active rewards for a family
+        /// For children: only shows Available and OutOfStock (not Hidden)
+        /// For parents: shows all rewards regardless of availability status
         /// </summary>
-        public static DataTable GetFamilyRewards(int familyId, bool activeOnly = true)
+        public static DataTable GetFamilyRewards(int familyId, bool activeOnly = true, bool forChild = false)
         {
             try
             {
                 string query = @"
-                    SELECT Id, Name, Description, PointCost, Category, ImageUrl, IsActive, CreatedDate, CreatedBy
+                    SELECT Id, Name, Description, PointCost, Category, ImageUrl, IsActive, AvailabilityStatus, CreatedDate, CreatedBy
                     FROM [dbo].[Rewards]
                     WHERE FamilyId = @FamilyId AND IsDeleted = 0";
 
                 if (activeOnly)
                 {
                     query += " AND IsActive = 1";
+                }
+
+                // For children, filter out Hidden rewards
+                if (forChild)
+                {
+                    query += " AND AvailabilityStatus != 'Hidden'";
                 }
 
                 query += " ORDER BY CreatedDate DESC";
@@ -84,7 +116,7 @@ namespace mokipointsCS
             {
                 string query = @"
                     SELECT Id, FamilyId, Name, Description, PointCost, Category, ImageUrl, 
-                           IsActive, IsDeleted, CreatedBy, CreatedDate, UpdatedBy, UpdatedDate
+                           IsActive, IsDeleted, AvailabilityStatus, CreatedBy, CreatedDate, UpdatedBy, UpdatedDate
                     FROM [dbo].[Rewards]
                     WHERE Id = @RewardId AND IsDeleted = 0";
 
@@ -206,6 +238,54 @@ namespace mokipointsCS
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(string.Format("DeleteReward error: {0}", ex.Message));
+                System.Diagnostics.Debug.WriteLine(string.Format("Stack Trace: {0}", ex.StackTrace));
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Updates reward availability status
+        /// Returns false if reward has checked-out orders (cannot change status)
+        /// Valid statuses: 'Available', 'OutOfStock', 'Hidden'
+        /// </summary>
+        public static bool UpdateRewardAvailability(int rewardId, string availabilityStatus, int userId)
+        {
+            try
+            {
+                // Validate status
+                if (availabilityStatus != "Available" && availabilityStatus != "OutOfStock" && availabilityStatus != "Hidden")
+                {
+                    System.Diagnostics.Debug.WriteLine(string.Format("UpdateRewardAvailability: Invalid status '{0}' for RewardId={1}", availabilityStatus, rewardId));
+                    return false;
+                }
+
+                // Check if reward has checked-out orders
+                if (HasCheckedOutOrders(rewardId))
+                {
+                    System.Diagnostics.Debug.WriteLine(string.Format("UpdateRewardAvailability Validation: HasCheckedOutOrders=true for RewardId={0}", rewardId));
+                    return false;
+                }
+
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateRewardAvailability Validation: HasCheckedOutOrders=false for RewardId={0}", rewardId));
+
+                string query = @"
+                    UPDATE [dbo].[Rewards]
+                    SET AvailabilityStatus = @AvailabilityStatus, 
+                        UpdatedDate = GETDATE(), 
+                        UpdatedBy = @UpdatedBy
+                    WHERE Id = @RewardId AND IsDeleted = 0";
+
+                int rows = DatabaseHelper.ExecuteNonQuery(query,
+                    new SqlParameter("@RewardId", rewardId),
+                    new SqlParameter("@AvailabilityStatus", availabilityStatus),
+                    new SqlParameter("@UpdatedBy", userId));
+
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateRewardAvailability: RewardId={0}, Status={1}, UpdatedBy={2}", rewardId, availabilityStatus, userId));
+                return rows > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateRewardAvailability error: {0}", ex.Message));
                 System.Diagnostics.Debug.WriteLine(string.Format("Stack Trace: {0}", ex.StackTrace));
                 return false;
             }

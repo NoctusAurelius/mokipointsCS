@@ -104,6 +104,39 @@
             cursor: pointer;
         }
         
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 18px;
+            padding: 5px;
+            z-index: 10;
+        }
+        
+        .password-toggle:hover {
+            color: #0066CC;
+        }
+        
+        .password-toggle:focus {
+            outline: none;
+        }
+        
+        .password-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+        
         .btn-register {
             width: 100%;
             padding: 14px;
@@ -220,8 +253,60 @@
             text-decoration: underline;
         }
         
+        /* Role Selection Cards */
+        .role-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        
+        .role-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: white;
+        }
+        
+        .role-card:hover {
+            border-color: #0066CC;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.2);
+        }
+        
+        .role-card.selected {
+            border-color: #0066CC;
+            background-color: #e7f3ff;
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+        
+        .role-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .role-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .role-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
         @media (max-width: 768px) {
             .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .role-cards {
                 grid-template-columns: 1fr;
             }
         }
@@ -281,6 +366,69 @@
         } else {
             console.warn('Page_ClientValidate function does NOT exist');
         }
+        
+        // Password toggle function
+        function togglePassword(inputId, toggleId) {
+            var input = document.getElementById(inputId);
+            var toggle = document.getElementById(toggleId);
+            if (input && toggle) {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    toggle.innerHTML = '&#128584;'; // See-no-evil monkey (hidden)
+                } else {
+                    input.type = 'password';
+                    toggle.innerHTML = '&#128065;'; // Eye (visible)
+                }
+            }
+        }
+        
+        // Role selection function
+        function selectRole(role) {
+            // Update hidden field
+            document.getElementById('<%= hidRole.ClientID %>').value = role;
+            
+            // Update card visuals
+            var cards = document.querySelectorAll('.role-card');
+            cards.forEach(function(card) {
+                if (card.getAttribute('data-role') === role) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+            
+            // Clear validation error
+            var errorLabel = document.getElementById('<%= lblRoleError.ClientID %>');
+            if (errorLabel) {
+                errorLabel.style.display = 'none';
+            }
+        }
+        
+        // Validate role before form submission
+        function validateRole() {
+            var role = document.getElementById('<%= hidRole.ClientID %>').value;
+            var errorLabel = document.getElementById('<%= lblRoleError.ClientID %>');
+            
+            if (!role || role === '') {
+                if (errorLabel) {
+                    errorLabel.style.display = 'block';
+                }
+                return false;
+            } else {
+                if (errorLabel) {
+                    errorLabel.style.display = 'none';
+                }
+                return true;
+            }
+        }
+        
+        // Initialize role selection on page load if value exists
+        window.addEventListener('load', function() {
+            var selectedRole = document.getElementById('<%= hidRole.ClientID %>').value;
+            if (selectedRole) {
+                selectRole(selectedRole);
+            }
+        });
     </script>
 </head>
 <body>
@@ -333,30 +481,44 @@
             </div>
             
             <div class="form-group">
-                <label for="ddlRole">Role <span class="required">*</span></label>
-                <asp:DropDownList ID="ddlRole" runat="server" CssClass="form-control">
-                    <asp:ListItem Value="">-- Select Role --</asp:ListItem>
-                    <asp:ListItem Value="PARENT">PARENT</asp:ListItem>
-                    <asp:ListItem Value="CHILD">CHILD</asp:ListItem>
-                </asp:DropDownList>
-                <asp:RequiredFieldValidator ID="rfvRole" runat="server" ControlToValidate="ddlRole" 
-                    ErrorMessage="Please select a role" CssClass="validation-error" Display="Dynamic" EnableClientScript="true" InitialValue=""></asp:RequiredFieldValidator>
+                <label>Role <span class="required">*</span></label>
+                <div class="role-cards">
+                    <div class="role-card" data-role="PARENT" onclick="selectRole('PARENT')">
+                        <div class="role-icon">&#128106;</div>
+                        <div class="role-title">Parent</div>
+                        <div class="role-description">Create and manage tasks, review submissions, and manage rewards</div>
+                    </div>
+                    <div class="role-card" data-role="CHILD" onclick="selectRole('CHILD')">
+                        <div class="role-icon">&#128118;</div>
+                        <div class="role-title">Child</div>
+                        <div class="role-description">Complete tasks, earn points, and redeem rewards</div>
+                    </div>
+                </div>
+                <asp:HiddenField ID="hidRole" runat="server" Value="" />
+                <asp:Label ID="lblRoleError" runat="server" CssClass="validation-error" style="display: none; color: #d32f2f; font-size: 12px; margin-top: 5px;">Please select a role</asp:Label>
             </div>
             
             <div class="form-row">
                 <div class="form-group">
                     <label for="txtPassword">Password <span class="required">*</span></label>
-                    <asp:TextBox ID="txtPassword" runat="server" CssClass="form-control" TextMode="Password" placeholder="Enter password"></asp:TextBox>
+                    <div class="input-wrapper">
+                        <asp:TextBox ID="txtPassword" runat="server" CssClass="form-control" TextMode="Password" placeholder="Enter password"></asp:TextBox>
+                        <button type="button" class="password-toggle" onclick="togglePassword('<%= txtPassword.ClientID %>', 'togglePassword1')" id="togglePassword1" aria-label="Toggle password visibility">&#128065;</button>
+                    </div>
+                    <div class="password-hint">Password must be 8-16 characters with at least one letter and one number</div>
                     <asp:RequiredFieldValidator ID="rfvPassword" runat="server" ControlToValidate="txtPassword" 
                         ErrorMessage="Password is required" CssClass="validation-error" Display="Dynamic" EnableClientScript="true"></asp:RequiredFieldValidator>
                     <asp:RegularExpressionValidator ID="revPassword" runat="server" ControlToValidate="txtPassword" 
-                        ValidationExpression=".{6,}" 
-                        ErrorMessage="Password must be at least 6 characters" CssClass="validation-error" Display="Dynamic" EnableClientScript="true"></asp:RegularExpressionValidator>
+                        ValidationExpression="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,16}$" 
+                        ErrorMessage="Password must be 8-16 characters with at least one letter and one number" CssClass="validation-error" Display="Dynamic" EnableClientScript="true"></asp:RegularExpressionValidator>
                 </div>
                 
                 <div class="form-group">
                     <label for="txtConfirmPassword">Confirm Password <span class="required">*</span></label>
-                    <asp:TextBox ID="txtConfirmPassword" runat="server" CssClass="form-control" TextMode="Password" placeholder="Confirm password"></asp:TextBox>
+                    <div class="input-wrapper">
+                        <asp:TextBox ID="txtConfirmPassword" runat="server" CssClass="form-control" TextMode="Password" placeholder="Confirm password"></asp:TextBox>
+                        <button type="button" class="password-toggle" onclick="togglePassword('<%= txtConfirmPassword.ClientID %>', 'togglePassword2')" id="togglePassword2" aria-label="Toggle password visibility">&#128065;</button>
+                    </div>
                     <asp:RequiredFieldValidator ID="rfvConfirmPassword" runat="server" ControlToValidate="txtConfirmPassword" 
                         ErrorMessage="Please confirm your password" CssClass="validation-error" Display="Dynamic" EnableClientScript="true"></asp:RequiredFieldValidator>
                     <asp:CompareValidator ID="cvPassword" runat="server" ControlToValidate="txtConfirmPassword" 
@@ -391,7 +553,7 @@
                 </div>
             </div>
             
-            <asp:Button ID="btnRegister" runat="server" Text="Register" CssClass="btn-register" OnClick="btnRegister_Click" OnClientClick="console.log('Button clicked'); var isValid = true; if(typeof Page_ClientValidate === 'function') { console.log('Running validation...'); isValid = Page_ClientValidate(); console.log('Validation result:', isValid); } if(isValid) { console.log('Validation passed - allowing submit'); showLoading(); return true; } else { console.log('Validation failed - preventing submit'); return false; }" UseSubmitBehavior="true" />
+            <asp:Button ID="btnRegister" runat="server" Text="Register" CssClass="btn-register" OnClick="btnRegister_Click" OnClientClick="console.log('Button clicked'); if (!validateRole()) { console.log('Role validation failed'); return false; } var isValid = true; if(typeof Page_ClientValidate === 'function') { console.log('Running validation...'); isValid = Page_ClientValidate(); console.log('Validation result:', isValid); } if(isValid) { console.log('Validation passed - allowing submit'); showLoading(); return true; } else { console.log('Validation failed - preventing submit'); return false; }" UseSubmitBehavior="true" />
             
             <asp:Label ID="lblError" runat="server" CssClass="error-message" Visible="false"></asp:Label>
             

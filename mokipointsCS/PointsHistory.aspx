@@ -120,6 +120,48 @@
             border-radius: 2px;
         }
         
+        /* Profile Picture Avatar */
+        .profile-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+        }
+        
+        .profile-avatar:hover {
+            border-color: #FF6600;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(255, 102, 0, 0.3);
+        }
+        
+        .profile-avatar-placeholder {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            background: linear-gradient(135deg, #FF6600 0%, #e55a00 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+            text-decoration: none;
+        }
+        
+        .profile-avatar-placeholder:hover {
+            border-color: #FF6600;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(255, 102, 0, 0.3);
+        }
+        
         /* Container */
         .container {
             max-width: 1200px;
@@ -168,52 +210,86 @@
         }
         
         .transaction-card {
-            background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            border-left: 4px solid #0066CC;
+            border-left: 5px solid #0066CC;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+            gap: 16px;
+        }
+        
+        .transaction-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
         }
         
         .transaction-card.earned {
-            border-left-color: #2e7d32;
+            border-left-color: #28a745;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f9f2 100%);
         }
         
         .transaction-card.spent {
-            border-left-color: #d32f2f;
+            border-left-color: #dc3545;
+            background: linear-gradient(135deg, #ffffff 0%, #fff5f5 100%);
         }
         
         .transaction-info {
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
         
         .transaction-description {
-            font-size: 16px;
-            font-weight: 500;
+            font-size: 18px;
+            font-weight: 600;
             color: #333;
-            margin-bottom: 5px;
+            margin-bottom: 0;
         }
         
         .transaction-date {
             font-size: 14px;
-            color: #999;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .transaction-date::before {
+            content: "📅";
+            font-size: 14px;
         }
         
         .transaction-amount {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
-            margin-left: 20px;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
         }
         
         .transaction-amount.earned {
-            color: #2e7d32;
+            color: #28a745;
+        }
+        
+        .transaction-amount.earned::before {
+            content: "+";
+            font-size: 24px;
         }
         
         .transaction-amount.spent {
-            color: #d32f2f;
+            color: #dc3545;
+        }
+        
+        .transaction-amount.spent::before {
+            content: "-";
+            font-size: 24px;
         }
         
         .empty-state {
@@ -229,6 +305,20 @@
             font-size: 64px;
             margin-bottom: 20px;
         }
+        
+        .transaction-icon {
+            font-size: 32px;
+            margin-right: 16px;
+            opacity: 0.8;
+        }
+        
+        .transaction-card.earned .transaction-icon {
+            color: #28a745;
+        }
+        
+        .transaction-card.spent .transaction-icon {
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -240,15 +330,20 @@
                     <span class="moki">MOKI</span><span class="points"> POINTS</span>
                 </div>
                 <div class="user-info">
-                    <div class="nav-links">
+                    <div class="nav-links" style="display: flex; gap: 20px; align-items: center; margin-right: 20px;">
                         <a href="ChildDashboard.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Dashboard</a>
+                        <a href="Family.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Family</a>
                         <a href="ChildTasks.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Tasks</a>
-                        <a href="PointsHistory.aspx" style="color: #0066CC; text-decoration: none; font-weight: 500; font-size: 16px;">Points</a>
+                        <a href="PointsHistory.aspx" class="active" style="color: #0066CC; text-decoration: none; font-weight: 500; font-size: 16px;">Points</a>
                         <a href="RewardShop.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Shop</a>
                         <a href="Cart.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Cart</a>
                         <a href="MyOrders.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">My Orders</a>
                     </div>
-                    <span class="user-name">Points History</span>
+                    <a href="Profile.aspx" style="text-decoration: none; display: flex; align-items: center;">
+                        <asp:Image ID="imgProfilePicture" runat="server" CssClass="profile-avatar" Visible="false" />
+                        <asp:Literal ID="litProfilePlaceholder" runat="server"></asp:Literal>
+                    </a>
+                    <span class="user-name"><asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
                     <a href="Settings.aspx" class="btn-settings" title="Settings">
                         <div class="hamburger-icon">
                             <div class="hamburger-line"></div>
@@ -280,12 +375,15 @@
                     <asp:Repeater ID="rptTransactions" runat="server">
                         <ItemTemplate>
                             <div class="transaction-card <%# Eval("TransactionType").ToString().ToLower() %>">
+                                <div class="transaction-icon">
+                                    <%# Eval("TransactionType").ToString() == "Earned" ? "💰" : "🛒" %>
+                                </div>
                                 <div class="transaction-info">
                                     <div class="transaction-description"><%# Eval("Description") %></div>
-                                    <div class="transaction-date"><%# Convert.ToDateTime(Eval("TransactionDate")).ToString("MMM dd, yyyy hh:mm tt") %></div>
+                                    <div class="transaction-date"><%# Convert.ToDateTime(Eval("TransactionDate")).ToString("MMM dd, yyyy HH:mm") %></div>
                                 </div>
                                 <div class="transaction-amount <%# Eval("TransactionType").ToString().ToLower() %>">
-                                    <%# Eval("TransactionType").ToString() == "Earned" ? "+" : "-" %><%# Convert.ToInt32(Eval("Points")).ToString("N0") %>
+                                    <%# Convert.ToInt32(Eval("Points")).ToString("N0") %> pts
                                 </div>
                             </div>
                         </ItemTemplate>
@@ -295,7 +393,7 @@
 
             <asp:Panel ID="pnlEmpty" runat="server" Visible="false">
                 <div class="empty-state">
-                    <div class="empty-state-icon">💰</div>
+                    <div class="empty-state-icon">&#128176;</div>
                     <h3>No transactions yet</h3>
                     <p>Complete tasks to start earning points!</p>
                 </div>

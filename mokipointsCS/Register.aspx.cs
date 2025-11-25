@@ -55,7 +55,7 @@ namespace mokipointsCS
                 string middleName = txtMiddleName.Text.Trim();
                 string email = txtEmail.Text.Trim().ToLower();
                 string password = txtPassword.Text;
-                string role = ddlRole.SelectedValue;
+                string role = hidRole.Value; // Get role from hidden field instead of dropdown
                 DateTime? birthday = null;
 
                 // Parse birthday
@@ -191,11 +191,24 @@ namespace mokipointsCS
                     return false;
                 }
 
-                if (ddlRole == null || string.IsNullOrEmpty(ddlRole.SelectedValue))
+                if (hidRole == null || string.IsNullOrEmpty(hidRole.Value))
                 {
                     System.Diagnostics.Debug.WriteLine("Validation failed: Role not selected");
+                    if (lblRoleError != null)
+                    {
+                        lblRoleError.Visible = true;
+                        lblRoleError.Style["display"] = "block";
+                    }
                     ShowError("Please select a role.");
                     return false;
+                }
+                else
+                {
+                    if (lblRoleError != null)
+                    {
+                        lblRoleError.Visible = false;
+                        lblRoleError.Style["display"] = "none";
+                    }
                 }
 
                 if (txtPassword == null || string.IsNullOrEmpty(txtPassword.Text))
@@ -205,11 +218,27 @@ namespace mokipointsCS
                     return false;
                 }
 
-                // Validate password length
-                if (txtPassword.Text.Length < 6)
+                // Validate password format (8-16 characters, at least one letter and one number)
+                if (txtPassword.Text.Length < 8 || txtPassword.Text.Length > 16)
                 {
-                    System.Diagnostics.Debug.WriteLine("Validation failed: Password too short");
-                    ShowError("Password must be at least 6 characters long.");
+                    System.Diagnostics.Debug.WriteLine("Validation failed: Password length invalid");
+                    ShowError("Password must be 8-16 characters long.");
+                    return false;
+                }
+                
+                // Check if password contains at least one letter and one number
+                bool hasLetter = false;
+                bool hasNumber = false;
+                foreach (char c in txtPassword.Text)
+                {
+                    if (char.IsLetter(c)) hasLetter = true;
+                    if (char.IsDigit(c)) hasNumber = true;
+                }
+                
+                if (!hasLetter || !hasNumber)
+                {
+                    System.Diagnostics.Debug.WriteLine("Validation failed: Password must contain letters and numbers");
+                    ShowError("Password must contain at least one letter and one number.");
                     return false;
                 }
 

@@ -209,6 +209,8 @@ namespace mokipointsCS
                     // Set user session AFTER clearing registration data
                     Session["UserId"] = userId;
                     Session["UserEmail"] = email;
+                    Session["FirstName"] = firstName;
+                    Session["LastName"] = lastName;
                     Session["UserName"] = firstName + " " + lastName;
                     Session["UserRole"] = role;
 

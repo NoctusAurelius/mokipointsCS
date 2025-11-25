@@ -156,9 +156,13 @@ namespace mokipointsCS
                             var userInfo = AuthenticationHelper.GetUserById(userId);
                             if (userInfo != null)
                             {
+                                string firstName = userInfo["FirstName"].ToString();
+                                string lastName = userInfo["LastName"].ToString();
                                 Session["UserId"] = userId;
                                 Session["UserEmail"] = email;
-                                Session["UserName"] = userInfo["FirstName"].ToString() + " " + userInfo["LastName"].ToString();
+                                Session["FirstName"] = firstName;
+                                Session["LastName"] = lastName;
+                                Session["UserName"] = firstName + " " + lastName;
                                 Session["UserRole"] = userInfo["Role"].ToString();
                             }
 

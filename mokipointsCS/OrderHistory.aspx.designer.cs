@@ -42,6 +42,24 @@ namespace mokipointsCS
         protected global::System.Web.UI.WebControls.Literal litNavigation;
 
         /// <summary>
+        /// imgProfilePicture control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Image imgProfilePicture;
+
+        /// <summary>
+        /// litProfilePlaceholder control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litProfilePlaceholder;
+
+        /// <summary>
         /// litUserName control.
         /// </summary>
         /// <remarks>

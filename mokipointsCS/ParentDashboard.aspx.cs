@@ -43,14 +43,31 @@ namespace mokipointsCS
                         LoadDashboardMetrics(familyId.Value);
                     }
                     
-                    // Display user name
-                    if (Session["UserName"] != null)
+                    // Display user name - load from session or database
+                    if (Session["FirstName"] != null)
                     {
-                        litUserName.Text = Session["UserName"].ToString();
+                        litUserName.Text = Session["FirstName"].ToString();
+                        if (Session["LastName"] != null)
+                        {
+                            litUserName.Text += " " + Session["LastName"].ToString();
+                        }
                     }
                     else
                     {
-                        litUserName.Text = "Parent";
+                        // Fallback: Load from database if session is missing
+                        var userInfo = AuthenticationHelper.GetUserById(userId);
+                        if (userInfo != null)
+                        {
+                            string firstName = userInfo["FirstName"].ToString();
+                            string lastName = userInfo["LastName"].ToString();
+                            Session["FirstName"] = firstName;
+                            Session["LastName"] = lastName;
+                            litUserName.Text = firstName + " " + lastName;
+                        }
+                        else
+                        {
+                            litUserName.Text = "Parent";
+                        }
                     }
                     
                     // Load profile picture

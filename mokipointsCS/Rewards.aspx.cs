@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.IO;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
@@ -25,7 +26,9 @@ namespace mokipointsCS
                     return;
                 }
 
-                // Set user name
+                int userId = Convert.ToInt32(Session["UserId"]);
+
+                // Set user name - load from session or database
                 if (Session["FirstName"] != null)
                 {
                     litUserName.Text = Session["FirstName"].ToString();
@@ -34,9 +37,25 @@ namespace mokipointsCS
                         litUserName.Text += " " + Session["LastName"].ToString();
                     }
                 }
+                else
+                {
+                    // Fallback: Load from database if session is missing
+                    var userInfo = AuthenticationHelper.GetUserById(userId);
+                    if (userInfo != null)
+                    {
+                        string firstName = userInfo["FirstName"].ToString();
+                        string lastName = userInfo["LastName"].ToString();
+                        Session["FirstName"] = firstName;
+                        Session["LastName"] = lastName;
+                        litUserName.Text = firstName + " " + lastName;
+                    }
+                }
 
                 if (!IsPostBack)
                 {
+                    // Load profile picture
+                    LoadProfilePicture(userId);
+                    
                     LoadRewards();
                 }
             }
@@ -103,6 +122,10 @@ namespace mokipointsCS
                     case "Delete":
                         // Handled by confirmation modal
                         break;
+
+                    case "UpdateAvailability":
+                        UpdateAvailabilityStatus(e);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -123,6 +146,9 @@ namespace mokipointsCS
                 Button btnEdit = (Button)e.Item.FindControl("btnEdit");
                 Button btnDelete = (Button)e.Item.FindControl("btnDelete");
                 Literal litInUseBadge = (Literal)e.Item.FindControl("litInUseBadge");
+                Literal litAvailabilityBadge = (Literal)e.Item.FindControl("litAvailabilityBadge");
+                DropDownList ddlAvailabilityStatus = (DropDownList)e.Item.FindControl("ddlAvailabilityStatus");
+                Literal litAvailabilityError = (Literal)e.Item.FindControl("litAvailabilityError");
 
                 // Check if reward has checked-out orders
                 bool hasCheckedOutOrders = RewardHelper.HasCheckedOutOrders(rewardId);
@@ -146,6 +172,47 @@ namespace mokipointsCS
                         btnDelete.Enabled = false;
                         btnDelete.ToolTip = "Cannot delete: Reward is in a checked-out order";
                     }
+                    
+                    // Disable availability status dropdown
+                    if (ddlAvailabilityStatus != null)
+                    {
+                        ddlAvailabilityStatus.Enabled = false;
+                        ddlAvailabilityStatus.ToolTip = "Cannot change status: Reward is in a checked-out order";
+                        if (litAvailabilityError != null)
+                        {
+                            litAvailabilityError.Text = "<span class='availability-error'>Cannot change status: Reward has existing orders</span>";
+                        }
+                    }
+                }
+
+                // Set availability status badge and dropdown
+                string availabilityStatus = row["AvailabilityStatus"] != DBNull.Value ? row["AvailabilityStatus"].ToString() : "Available";
+                
+                if (litAvailabilityBadge != null)
+                {
+                    string badgeClass = "badge-availability ";
+                    string badgeText = "";
+                    switch (availabilityStatus)
+                    {
+                        case "Available":
+                            badgeClass += "badge-available";
+                            badgeText = "Available";
+                            break;
+                        case "OutOfStock":
+                            badgeClass += "badge-outofstock";
+                            badgeText = "Out of Stock";
+                            break;
+                        case "Hidden":
+                            badgeClass += "badge-hidden";
+                            badgeText = "Hidden";
+                            break;
+                    }
+                    litAvailabilityBadge.Text = string.Format("<span class='{0}'>{1}</span>", badgeClass, badgeText);
+                }
+
+                if (ddlAvailabilityStatus != null)
+                {
+                    ddlAvailabilityStatus.SelectedValue = availabilityStatus;
                 }
             }
         }
@@ -374,6 +441,108 @@ namespace mokipointsCS
         {
             ScriptManager.RegisterStartupScript(this, GetType(), "ShowError", 
                 string.Format("showMessage('error', '{0}');", message.Replace("'", "\\'")), true);
+        }
+
+        protected void LoadProfilePicture(int userId)
+        {
+            try
+            {
+                var userInfo = AuthenticationHelper.GetUserById(userId);
+                if (userInfo != null)
+                {
+                    string firstName = userInfo["FirstName"].ToString();
+                    string lastName = userInfo["LastName"].ToString();
+                    string initials = (firstName.Length > 0 ? firstName[0].ToString() : "") + (lastName.Length > 0 ? lastName[0].ToString() : "");
+                    
+                    // Check if ProfilePicture column exists
+                    string profilePicture = null;
+                    if (userInfo.Table.Columns.Contains("ProfilePicture"))
+                    {
+                        profilePicture = (userInfo["ProfilePicture"] != null && userInfo["ProfilePicture"] != DBNull.Value) ? userInfo["ProfilePicture"].ToString() : null;
+                    }
+                    
+                    // Load profile picture if exists
+                    if (!string.IsNullOrEmpty(profilePicture))
+                    {
+                        string picturePath = Server.MapPath("~/Images/ProfilePictures/" + profilePicture);
+                        if (File.Exists(picturePath))
+                        {
+                            imgProfilePicture.ImageUrl = "~/Images/ProfilePictures/" + profilePicture;
+                            imgProfilePicture.Visible = true;
+                            litProfilePlaceholder.Visible = false;
+                            return;
+                        }
+                    }
+                    
+                    // Show placeholder with initials
+                    litProfilePlaceholder.Text = string.Format(
+                        "<div class=\"profile-avatar-placeholder\">{0}</div>",
+                        string.IsNullOrEmpty(initials) ? "P" : initials.ToUpper());
+                    litProfilePlaceholder.Visible = true;
+                    imgProfilePicture.Visible = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("LoadProfilePicture error: " + ex.Message);
+                // Show default placeholder on error
+                litProfilePlaceholder.Text = "<div class=\"profile-avatar-placeholder\">P</div>";
+                litProfilePlaceholder.Visible = true;
+                imgProfilePicture.Visible = false;
+            }
+        }
+
+        private void UpdateAvailabilityStatus(RepeaterCommandEventArgs e)
+        {
+            try
+            {
+                int rewardId = Convert.ToInt32(e.CommandArgument);
+                int userId = Convert.ToInt32(Session["UserId"]);
+
+                // Find the dropdown in the repeater item
+                DropDownList ddlAvailabilityStatus = (DropDownList)e.Item.FindControl("ddlAvailabilityStatus");
+                if (ddlAvailabilityStatus == null)
+                {
+                    ShowError("Could not find availability status dropdown.");
+                    return;
+                }
+
+                string availabilityStatus = ddlAvailabilityStatus.SelectedValue;
+
+                // Validate status
+                if (availabilityStatus != "Available" && availabilityStatus != "OutOfStock" && availabilityStatus != "Hidden")
+                {
+                    ShowError("Invalid availability status.");
+                    return;
+                }
+
+                // Check if reward has checked-out orders
+                if (RewardHelper.HasCheckedOutOrders(rewardId))
+                {
+                    ShowError("Cannot change availability status. This reward has existing orders.");
+                    LoadRewards(); // Reload to refresh UI
+                    return;
+                }
+
+                // Update availability status
+                bool success = RewardHelper.UpdateRewardAvailability(rewardId, availabilityStatus, userId);
+
+                if (success)
+                {
+                    ShowSuccess("Availability status updated successfully!");
+                    LoadRewards(); // Reload to refresh UI
+                }
+                else
+                {
+                    ShowError("Failed to update availability status. Please try again.");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("UpdateAvailabilityStatus error: " + ex.Message);
+                System.Diagnostics.Debug.WriteLine("Stack Trace: " + ex.StackTrace);
+                ShowError("An error occurred while updating availability status.");
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.IO;
 using System.Web.Services;
 using System.Web.UI;
 using System.Web.UI.WebControls;
@@ -35,14 +36,29 @@ namespace mokipointsCS
                     return;
                 }
 
-                // Set user name
-                if (Session["FirstName"] != null && Session["LastName"] != null)
+                // Set user name - load from session or database
+                if (Session["FirstName"] != null)
                 {
-                    litUserName.Text = Session["FirstName"].ToString() + " " + Session["LastName"].ToString();
+                    litUserName.Text = Session["FirstName"].ToString();
+                }
+                else
+                {
+                    // Fallback: Load from database if session is missing
+                    var userInfo = AuthenticationHelper.GetUserById(userId);
+                    if (userInfo != null)
+                    {
+                        string firstName = userInfo["FirstName"].ToString();
+                        Session["FirstName"] = firstName;
+                        Session["LastName"] = userInfo["LastName"].ToString();
+                        litUserName.Text = firstName;
+                    }
                 }
 
                 if (!IsPostBack)
                 {
+                    // Load profile picture
+                    LoadProfilePicture(userId);
+                    
                     // Check and auto-fail overdue tasks (Fix #3)
                     if (familyId.HasValue)
                     {
@@ -341,6 +357,55 @@ namespace mokipointsCS
             lblError.Text = message;
             pnlError.Visible = true;
             pnlSuccess.Visible = false;
+        }
+
+        protected void LoadProfilePicture(int userId)
+        {
+            try
+            {
+                var userInfo = AuthenticationHelper.GetUserById(userId);
+                if (userInfo != null)
+                {
+                    string firstName = userInfo["FirstName"].ToString();
+                    string lastName = userInfo["LastName"].ToString();
+                    string initials = (firstName.Length > 0 ? firstName[0].ToString() : "") + (lastName.Length > 0 ? lastName[0].ToString() : "");
+                    
+                    // Check if ProfilePicture column exists
+                    string profilePicture = null;
+                    if (userInfo.Table.Columns.Contains("ProfilePicture"))
+                    {
+                        profilePicture = (userInfo["ProfilePicture"] != null && userInfo["ProfilePicture"] != DBNull.Value) ? userInfo["ProfilePicture"].ToString() : null;
+                    }
+                    
+                    // Load profile picture if exists
+                    if (!string.IsNullOrEmpty(profilePicture))
+                    {
+                        string picturePath = Server.MapPath("~/Images/ProfilePictures/" + profilePicture);
+                        if (File.Exists(picturePath))
+                        {
+                            imgProfilePicture.ImageUrl = "~/Images/ProfilePictures/" + profilePicture;
+                            imgProfilePicture.Visible = true;
+                            litProfilePlaceholder.Visible = false;
+                            return;
+                        }
+                    }
+                    
+                    // Show placeholder with initials
+                    litProfilePlaceholder.Text = string.Format(
+                        "<div class=\"profile-avatar-placeholder\">{0}</div>",
+                        string.IsNullOrEmpty(initials) ? "C" : initials.ToUpper());
+                    litProfilePlaceholder.Visible = true;
+                    imgProfilePicture.Visible = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("LoadProfilePicture error: " + ex.Message);
+                // Show default placeholder on error
+                litProfilePlaceholder.Text = "<div class=\"profile-avatar-placeholder\">C</div>";
+                litProfilePlaceholder.Visible = true;
+                imgProfilePicture.Visible = false;
+            }
         }
     }
 }

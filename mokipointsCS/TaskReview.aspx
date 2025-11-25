@@ -115,6 +115,48 @@
             border-radius: 2px;
         }
 
+        /* Profile Picture Avatar */
+        .profile-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+        }
+        
+        .profile-avatar:hover {
+            border-color: #0066CC;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+        }
+        
+        .profile-avatar-placeholder {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #e0e0e0;
+            background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 12px;
+            text-decoration: none;
+        }
+        
+        .profile-avatar-placeholder:hover {
+            border-color: #0066CC;
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+        }
+
         /* Container */
         .container {
             max-width: 1200px;
@@ -667,16 +709,20 @@
                     <span class="moki">MOKI</span><span class="points"> POINTS</span>
                 </div>
                 <div class="user-info">
-                    <div class="nav-links">
-                        <a href="ParentDashboard.aspx">Dashboard</a>
-                        <a href="Family.aspx">Family</a>
-                        <a href="Tasks.aspx">Tasks</a>
-                        <a href="TaskReview.aspx" class="active">Review</a>
-                        <a href="Rewards.aspx">Rewards</a>
-                        <a href="RewardOrders.aspx">Orders</a>
-                        <a href="Notifications.aspx">Notifications</a>
+                    <div class="nav-links" style="display: flex; gap: 20px; align-items: center; margin-right: 20px;">
+                        <a href="ParentDashboard.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Dashboard</a>
+                        <a href="Family.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Family</a>
+                        <a href="Tasks.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Tasks</a>
+                        <a href="TaskReview.aspx" class="active" style="color: #0066CC; text-decoration: none; font-weight: 500; font-size: 16px;">Review</a>
+                        <a href="Rewards.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Rewards</a>
+                        <a href="RewardOrders.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Orders</a>
+                        <a href="OrderHistory.aspx" style="color: #333; text-decoration: none; font-weight: 500; font-size: 16px;">Order History</a>
                     </div>
-                    <span class="user-name">Welcome, <asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
+                    <a href="Profile.aspx" style="text-decoration: none; display: flex; align-items: center;">
+                        <asp:Image ID="imgProfilePicture" runat="server" CssClass="profile-avatar" Visible="false" />
+                        <asp:Literal ID="litProfilePlaceholder" runat="server"></asp:Literal>
+                    </a>
+                    <span class="user-name"><asp:Literal ID="litUserName" runat="server"></asp:Literal></span>
                     <a href="Settings.aspx" class="btn-settings" title="Settings">
                         <div class="hamburger-icon">
                             <div class="hamburger-line"></div>
@@ -696,18 +742,18 @@
             <!-- Success/Error Messages -->
             <div class="message-container">
                 <asp:Panel ID="pnlSuccess" runat="server" CssClass="message success-message hidden">
-                    <span class="message-icon">✓</span>
+                    <span class="message-icon">&#10003;</span>
                     <span class="message-content">
                         <asp:Literal ID="lblSuccess" runat="server"></asp:Literal>
                     </span>
-                    <button type="button" class="message-close" onclick="closeMessage(this)">×</button>
+                    <button type="button" class="message-close" onclick="closeMessage(this)">&#215;</button>
                 </asp:Panel>
                 <asp:Panel ID="pnlError" runat="server" CssClass="message error-message hidden">
-                    <span class="message-icon">⚠</span>
+                    <span class="message-icon">&#9888;</span>
                     <span class="message-content">
                         <asp:Literal ID="lblError" runat="server"></asp:Literal>
                     </span>
-                    <button type="button" class="message-close" onclick="closeMessage(this)">×</button>
+                    <button type="button" class="message-close" onclick="closeMessage(this)">&#215;</button>
                 </asp:Panel>
             </div>
 
@@ -775,14 +821,14 @@
             </asp:Panel>
 
             <asp:Panel ID="pnlEmpty" runat="server" Visible="false" CssClass="empty-state">
-                <p>No tasks pending review. All caught up! 🎉</p>
+                <p>No tasks pending review. All caught up! <span style="font-size: 1.2em;">&#127881;</span></p>
             </asp:Panel>
         </div>
 
         <!-- Confirmation Modal for Review Submission -->
         <div id="reviewConfirmModal" class="confirmation-modal">
             <div class="confirmation-content">
-                <div class="confirmation-icon warning">⚠</div>
+                <div class="confirmation-icon warning">&#9888;</div>
                 <div class="confirmation-title">Confirm Review Submission</div>
                 <div class="confirmation-message" id="reviewConfirmMessage">
                     Are you sure you want to submit this review? This action cannot be undone.
@@ -797,7 +843,7 @@
         <!-- Confirmation Modal for Mark as Failed -->
         <div id="failConfirmModal" class="confirmation-modal">
             <div class="confirmation-content">
-                <div class="confirmation-icon danger">⚠</div>
+                <div class="confirmation-icon danger">&#9888;</div>
                 <div class="confirmation-title">Mark Task as Failed</div>
                 <div class="confirmation-message">
                     Are you sure you want to fail this task? The child will lose 50% of the task points. This action cannot be undone.
@@ -868,17 +914,31 @@
             var currentAssignmentId = null;
             var pendingSubmitButton = null;
 
+            function showError(message) {
+                var errorPanel = document.getElementById('<%= pnlError.ClientID %>');
+                var errorLabel = document.getElementById('<%= lblError.ClientID %>');
+                if (errorPanel && errorLabel) {
+                    errorLabel.textContent = message;
+                    errorPanel.classList.remove('hidden');
+                    errorPanel.classList.add('error-message');
+                    // Auto-hide after 7 seconds
+                    setTimeout(function() {
+                        closeMessage(errorPanel.querySelector('.message-close'));
+                    }, 7000);
+                }
+            }
+
             function validateReview(assignmentId, buttonElement) {
                 console.log('validateReview called for assignment:', assignmentId);
                 var rating = ratings[assignmentId] || 0;
 
                 if (rating === 0) {
-                    alert('Please select a rating (1-5 stars) before submitting.');
+                    showError('Please select a rating (1-5 stars) before submitting.');
                     return false;
                 }
 
                 if (rating < 1 || rating > 5) {
-                    alert('Please select a valid rating (1-5 stars).');
+                    showError('Please select a valid rating (1-5 stars).');
                     return false;
                 }
 

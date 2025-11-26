@@ -3,6 +3,7 @@ using System.Web.UI;
 using System.Web.UI.WebControls;
 using System.Text.RegularExpressions;
 using System.Data;
+using System.Globalization;
 
 namespace mokipointsCS
 {
@@ -58,12 +59,19 @@ namespace mokipointsCS
                 string role = hidRole.Value; // Get role from hidden field instead of dropdown
                 DateTime? birthday = null;
 
-                // Parse birthday
+                // Parse birthday using explicit format to avoid culture-dependent parsing issues
+                // Datepicker outputs MM/dd/yyyy format, so we parse with that exact format
                 if (!string.IsNullOrEmpty(txtBirthday.Text))
                 {
-                    if (DateTime.TryParse(txtBirthday.Text, out DateTime bday))
+                    if (DateTime.TryParseExact(txtBirthday.Text.Trim(), "MM/dd/yyyy", 
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime bday))
                     {
                         birthday = bday;
+                    }
+                    else
+                    {
+                        // Log parsing failure for debugging
+                        System.Diagnostics.Debug.WriteLine("Birthday parsing failed in btnRegister_Click: " + txtBirthday.Text);
                     }
                 }
 
@@ -160,11 +168,13 @@ namespace mokipointsCS
                     return false;
                 }
 
-                // Validate birthday format
-                if (!DateTime.TryParse(txtBirthday.Text, out DateTime birthday))
+                // Validate birthday format using explicit format to avoid culture-dependent parsing issues
+                // Datepicker outputs MM/dd/yyyy format, so we validate with that exact format
+                if (!DateTime.TryParseExact(txtBirthday.Text.Trim(), "MM/dd/yyyy", 
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime birthday))
                 {
                     System.Diagnostics.Debug.WriteLine("Validation failed: Invalid birthday format - " + txtBirthday.Text);
-                    ShowError("Please enter a valid birthday.");
+                    ShowError("Please enter a valid birthday in MM/DD/YYYY format (e.g., 12/16/2015).");
                     return false;
                 }
 

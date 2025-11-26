@@ -202,7 +202,7 @@ namespace mokipointsCS
         /// Deducts points from a user (cannot go negative)
         /// Points go to treasury
         /// </summary>
-        public static bool DeductPoints(int userId, int points, int familyId, string description, int? orderId)
+        public static bool DeductPoints(int userId, int points, int familyId, string description, int? orderId, int? taskAssignmentId = null)
         {
             try
             {
@@ -221,9 +221,9 @@ namespace mokipointsCS
                         {
                             // Lock user's points row for update
                             string lockQuery = @"
-                                SELECT Points FROM [dbo].[Users]
-                                WHERE Id = @UserId
-                                WITH (UPDLOCK, ROWLOCK)";
+                                SELECT Points 
+                                FROM [dbo].[Users] WITH (UPDLOCK, ROWLOCK)
+                                WHERE Id = @UserId";
 
                             int currentBalance = 0;
                             using (SqlCommand cmd = new SqlCommand(lockQuery, conn, transaction))
@@ -272,11 +272,14 @@ namespace mokipointsCS
                             // Add to treasury (only actual deducted amount)
                             if (actualDeducted > 0)
                             {
-                                if (!TreasuryHelper.DepositToTreasury(familyId, actualDeducted, description ?? "Points deducted from child", orderId, null))
+                                // Pass taskAssignmentId as relatedTaskAssignmentId, orderId as relatedOrderId
+                                if (!TreasuryHelper.DepositToTreasury(familyId, actualDeducted, description ?? "Points deducted from child", orderId, taskAssignmentId, null, conn, transaction))
                                 {
+                                    System.Diagnostics.Debug.WriteLine(string.Format("DeductPoints ERROR: Failed to deposit to treasury"));
                                     transaction.Rollback();
                                     return false;
                                 }
+                                System.Diagnostics.Debug.WriteLine(string.Format("DeductPoints: Successfully deposited {0} to treasury", actualDeducted));
                             }
 
                             transaction.Commit();

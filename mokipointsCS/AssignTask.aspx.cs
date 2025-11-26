@@ -144,7 +144,7 @@ namespace mokipointsCS
                 int taskId = Convert.ToInt32(Request.QueryString["taskId"]);
                 int childId = Convert.ToInt32(ddlChild.SelectedValue);
 
-                // Parse deadline
+                // Parse deadline with validation
                 DateTime? deadline = null;
                 if (!string.IsNullOrEmpty(txtDeadlineDate.Text))
                 {
@@ -156,11 +156,28 @@ namespace mokipointsCS
                     }
                     else
                     {
-                        deadline = deadlineDate.Date;
+                        // If no time specified, set to end of day (23:59:59)
+                        deadline = deadlineDate.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
+                    }
+                    
+                    // Validate deadline: must be at least 10 minutes in the future
+                    DateTime now = DateTime.Now;
+                    DateTime minDeadline = now.AddMinutes(10);
+                    
+                    if (deadline.Value <= now)
+                    {
+                        ShowError("Deadline must be in the future. Please select a date/time that has not passed.");
+                        return;
+                    }
+                    
+                    if (deadline.Value < minDeadline)
+                    {
+                        ShowError(string.Format("Deadline must be at least 10 minutes in the future. The earliest deadline is {0:MMM dd, yyyy hh:mm tt}.", minDeadline));
+                        return;
                     }
                 }
 
-                // Assign task (Fix #5: Server-side deadline validation is in TaskHelper.AssignTask)
+                // Assign task (Server-side deadline validation is also in TaskHelper.AssignTask)
                 bool success = TaskHelper.AssignTask(taskId, childId, deadline);
 
                 if (success)

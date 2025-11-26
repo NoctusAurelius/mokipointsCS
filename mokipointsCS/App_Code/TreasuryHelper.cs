@@ -250,6 +250,14 @@ namespace mokipointsCS
         /// </summary>
         public static bool DepositToTreasury(int familyId, int amount, string description, int? relatedOrderId, int? createdBy, SqlConnection conn, SqlTransaction transaction)
         {
+            return DepositToTreasury(familyId, amount, description, relatedOrderId, null, createdBy, conn, transaction);
+        }
+
+        /// <summary>
+        /// Deposits points to treasury (transaction-aware overload with task assignment support)
+        /// </summary>
+        public static bool DepositToTreasury(int familyId, int amount, string description, int? relatedOrderId, int? relatedTaskAssignmentId, int? createdBy, SqlConnection conn, SqlTransaction transaction)
+        {
             try
             {
                 System.Diagnostics.Debug.WriteLine(string.Format("DepositToTreasury: Starting - FamilyId={0}, Amount={1}", familyId, amount));
@@ -297,8 +305,8 @@ namespace mokipointsCS
                 // Create treasury transaction record
                 string insertQuery = @"
                     INSERT INTO [dbo].[TreasuryTransactions] 
-                    (FamilyId, TransactionType, Amount, BalanceAfter, Description, RelatedOrderId, CreatedBy, CreatedDate)
-                    VALUES (@FamilyId, 'Deposit', @Amount, @BalanceAfter, @Description, @RelatedOrderId, @CreatedBy, GETDATE())";
+                    (FamilyId, TransactionType, Amount, BalanceAfter, Description, RelatedOrderId, RelatedTaskAssignmentId, CreatedBy, CreatedDate)
+                    VALUES (@FamilyId, 'Deposit', @Amount, @BalanceAfter, @Description, @RelatedOrderId, @RelatedTaskAssignmentId, @CreatedBy, GETDATE())";
 
                 using (SqlCommand cmd = new SqlCommand(insertQuery, conn, transaction))
                 {
@@ -307,6 +315,7 @@ namespace mokipointsCS
                     cmd.Parameters.AddWithValue("@BalanceAfter", newBalance);
                     cmd.Parameters.AddWithValue("@Description", description ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@RelatedOrderId", relatedOrderId ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@RelatedTaskAssignmentId", relatedTaskAssignmentId ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@CreatedBy", createdBy ?? (object)DBNull.Value);
                     int rowsAffected = cmd.ExecuteNonQuery();
                     System.Diagnostics.Debug.WriteLine(string.Format("DepositToTreasury: Transaction record inserted - RowsAffected={0}", rowsAffected));

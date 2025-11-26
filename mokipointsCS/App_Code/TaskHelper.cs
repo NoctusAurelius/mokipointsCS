@@ -719,11 +719,23 @@ namespace mokipointsCS
                 System.Diagnostics.Debug.WriteLine("UserId: " + userId);
                 System.Diagnostics.Debug.WriteLine("Deadline: " + (deadline.HasValue ? deadline.Value.ToString() : "NULL"));
 
-                // Fix #5: Server-side deadline validation
-                if (deadline.HasValue && deadline.Value <= DateTime.Now)
+                // Enhanced deadline validation: must be at least 10 minutes in the future
+                if (deadline.HasValue)
                 {
-                    System.Diagnostics.Debug.WriteLine("AssignTask: Deadline is in the past - validation failed");
-                    return false; // Deadline must be in the future
+                    DateTime now = DateTime.Now;
+                    DateTime minDeadline = now.AddMinutes(10);
+                    
+                    if (deadline.Value <= now)
+                    {
+                        System.Diagnostics.Debug.WriteLine("AssignTask: Deadline is in the past - validation failed. Deadline: " + deadline.Value.ToString() + ", Now: " + now.ToString());
+                        return false; // Deadline must be in the future
+                    }
+                    
+                    if (deadline.Value < minDeadline)
+                    {
+                        System.Diagnostics.Debug.WriteLine("AssignTask: Deadline is less than 10 minutes ahead - validation failed. Deadline: " + deadline.Value.ToString() + ", MinDeadline: " + minDeadline.ToString());
+                        return false; // Deadline must be at least 10 minutes in the future
+                    }
                 }
 
                 // Check if child is banned
@@ -839,6 +851,55 @@ namespace mokipointsCS
         {
             try
             {
+                // First, check if task is overdue and auto-fail if needed
+                string checkQuery = @"
+                    SELECT ta.Deadline, ta.Status, ta.TaskId, t.PointsReward, t.FamilyId, f.OwnerId AS FamilyOwnerId
+                    FROM [dbo].[TaskAssignments] ta
+                    INNER JOIN [dbo].[Tasks] t ON ta.TaskId = t.Id
+                    INNER JOIN [dbo].[Families] f ON t.FamilyId = f.Id
+                    WHERE ta.Id = @TaskAssignmentId AND ta.UserId = @UserId AND ta.IsDeleted = 0";
+                
+                using (DataTable dt = DatabaseHelper.ExecuteQuery(checkQuery,
+                    new SqlParameter("@TaskAssignmentId", taskAssignmentId),
+                    new SqlParameter("@UserId", userId)))
+                {
+                    if (dt.Rows.Count == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("AcceptTask: Assignment {0} not found for user {1}", taskAssignmentId, userId));
+                        return false;
+                    }
+                    
+                    string status = dt.Rows[0]["Status"].ToString();
+                    if (status != "Assigned")
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("AcceptTask: Assignment {0} is not in 'Assigned' status. Current: {1}", taskAssignmentId, status));
+                        return false;
+                    }
+                    
+                    // Check if task is overdue
+                    if (dt.Rows[0]["Deadline"] != DBNull.Value)
+                    {
+                        DateTime deadline = Convert.ToDateTime(dt.Rows[0]["Deadline"]);
+                        if (deadline < DateTime.Now)
+                        {
+                            // Task is overdue - auto-fail it
+                            System.Diagnostics.Debug.WriteLine(string.Format("AcceptTask: Assignment {0} is overdue (deadline: {1}). Auto-failing.", taskAssignmentId, deadline));
+                            int familyOwnerId = Convert.ToInt32(dt.Rows[0]["FamilyOwnerId"]);
+                            if (ReviewTask(taskAssignmentId, 0, familyOwnerId, true, true)) // isAutoFailed = true
+                            {
+                                System.Diagnostics.Debug.WriteLine(string.Format("AcceptTask: Successfully auto-failed overdue assignment {0}", taskAssignmentId));
+                                return false; // Return false to indicate task was auto-failed, not accepted
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine(string.Format("AcceptTask ERROR: Failed to auto-fail overdue assignment {0}", taskAssignmentId));
+                                return false;
+                            }
+                        }
+                    }
+                }
+                
+                // Task is not overdue - proceed with acceptance
                 string query = @"
                     UPDATE [dbo].[TaskAssignments]
                     SET Status = 'Ongoing', AcceptedDate = GETDATE()
@@ -928,6 +989,55 @@ namespace mokipointsCS
         {
             try
             {
+                // First, check if task is overdue and auto-fail if needed
+                string checkQuery = @"
+                    SELECT ta.Deadline, ta.Status, ta.TaskId, t.PointsReward, t.FamilyId, f.OwnerId AS FamilyOwnerId
+                    FROM [dbo].[TaskAssignments] ta
+                    INNER JOIN [dbo].[Tasks] t ON ta.TaskId = t.Id
+                    INNER JOIN [dbo].[Families] f ON t.FamilyId = f.Id
+                    WHERE ta.Id = @TaskAssignmentId AND ta.UserId = @UserId AND ta.IsDeleted = 0";
+                
+                using (DataTable dt = DatabaseHelper.ExecuteQuery(checkQuery,
+                    new SqlParameter("@TaskAssignmentId", taskAssignmentId),
+                    new SqlParameter("@UserId", userId)))
+                {
+                    if (dt.Rows.Count == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("DenyTask: Assignment {0} not found for user {1}", taskAssignmentId, userId));
+                        return false;
+                    }
+                    
+                    string status = dt.Rows[0]["Status"].ToString();
+                    if (status != "Assigned")
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("DenyTask: Assignment {0} is not in 'Assigned' status. Current: {1}", taskAssignmentId, status));
+                        return false;
+                    }
+                    
+                    // Check if task is overdue
+                    if (dt.Rows[0]["Deadline"] != DBNull.Value)
+                    {
+                        DateTime deadline = Convert.ToDateTime(dt.Rows[0]["Deadline"]);
+                        if (deadline < DateTime.Now)
+                        {
+                            // Task is overdue - auto-fail it
+                            System.Diagnostics.Debug.WriteLine(string.Format("DenyTask: Assignment {0} is overdue (deadline: {1}). Auto-failing.", taskAssignmentId, deadline));
+                            int familyOwnerId = Convert.ToInt32(dt.Rows[0]["FamilyOwnerId"]);
+                            if (ReviewTask(taskAssignmentId, 0, familyOwnerId, true, true)) // isAutoFailed = true
+                            {
+                                System.Diagnostics.Debug.WriteLine(string.Format("DenyTask: Successfully auto-failed overdue assignment {0}", taskAssignmentId));
+                                return false; // Return false to indicate task was auto-failed, not denied
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine(string.Format("DenyTask ERROR: Failed to auto-fail overdue assignment {0}", taskAssignmentId));
+                                return false;
+                            }
+                        }
+                    }
+                }
+                
+                // Task is not overdue - proceed with denial
                 string query = @"
                     UPDATE [dbo].[TaskAssignments]
                     SET Status = 'Declined'
@@ -977,7 +1087,56 @@ namespace mokipointsCS
                     System.Diagnostics.Debug.WriteLine("SubmitTaskForReview: Not all objectives completed");
                     return false;
                 }
+                
+                // Check if task is overdue and auto-fail if needed
+                string checkQuery = @"
+                    SELECT ta.Deadline, ta.Status, ta.TaskId, t.PointsReward, t.FamilyId, f.OwnerId AS FamilyOwnerId
+                    FROM [dbo].[TaskAssignments] ta
+                    INNER JOIN [dbo].[Tasks] t ON ta.TaskId = t.Id
+                    INNER JOIN [dbo].[Families] f ON t.FamilyId = f.Id
+                    WHERE ta.Id = @TaskAssignmentId AND ta.UserId = @UserId AND ta.IsDeleted = 0";
+                
+                using (DataTable dt = DatabaseHelper.ExecuteQuery(checkQuery,
+                    new SqlParameter("@TaskAssignmentId", taskAssignmentId),
+                    new SqlParameter("@UserId", userId)))
+                {
+                    if (dt.Rows.Count == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("SubmitTaskForReview: Assignment {0} not found for user {1}", taskAssignmentId, userId));
+                        return false;
+                    }
+                    
+                    string status = dt.Rows[0]["Status"].ToString();
+                    if (status != "Ongoing")
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("SubmitTaskForReview: Assignment {0} is not in 'Ongoing' status. Current: {1}", taskAssignmentId, status));
+                        return false;
+                    }
+                    
+                    // Check if task is overdue
+                    if (dt.Rows[0]["Deadline"] != DBNull.Value)
+                    {
+                        DateTime deadline = Convert.ToDateTime(dt.Rows[0]["Deadline"]);
+                        if (deadline < DateTime.Now)
+                        {
+                            // Task is overdue - auto-fail it
+                            System.Diagnostics.Debug.WriteLine(string.Format("SubmitTaskForReview: Assignment {0} is overdue (deadline: {1}). Auto-failing.", taskAssignmentId, deadline));
+                            int familyOwnerId = Convert.ToInt32(dt.Rows[0]["FamilyOwnerId"]);
+                            if (ReviewTask(taskAssignmentId, 0, familyOwnerId, true, true)) // isAutoFailed = true
+                            {
+                                System.Diagnostics.Debug.WriteLine(string.Format("SubmitTaskForReview: Successfully auto-failed overdue assignment {0}", taskAssignmentId));
+                                return false; // Return false to indicate task was auto-failed, not submitted
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine(string.Format("SubmitTaskForReview ERROR: Failed to auto-fail overdue assignment {0}", taskAssignmentId));
+                                return false;
+                            }
+                        }
+                    }
+                }
 
+                // Task is not overdue - proceed with submission
                 string query = @"
                     UPDATE [dbo].[TaskAssignments]
                     SET Status = 'Pending Review', CompletedDate = GETDATE()
@@ -1066,10 +1225,22 @@ namespace mokipointsCS
                     string currentStatus = dt.Rows[0]["Status"].ToString();
                     System.Diagnostics.Debug.WriteLine(string.Format("ReviewTask: Assignment {0} current status: {1}", taskAssignmentId, currentStatus));
 
-                    if (currentStatus != "Pending Review")
+                    // Allow "Assigned" or "Ongoing" status only when auto-failing overdue tasks
+                    if (currentStatus != "Pending Review" && !(isAutoFailed && (currentStatus == "Assigned" || currentStatus == "Ongoing")))
                     {
                         System.Diagnostics.Debug.WriteLine(string.Format("ReviewTask: Assignment {0} is not in 'Pending Review' status. Current: {1}", taskAssignmentId, currentStatus));
                         return false;
+                    }
+
+                    // If auto-failing an "Assigned" or "Ongoing" task, update status to "Pending Review" first
+                    if (isAutoFailed && (currentStatus == "Assigned" || currentStatus == "Ongoing"))
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("ReviewTask: Auto-failing overdue '{0}' task - updating status to 'Pending Review'", currentStatus));
+                        string updateStatusQuery = @"
+                            UPDATE [dbo].[TaskAssignments]
+                            SET Status = 'Pending Review'
+                            WHERE Id = @TaskAssignmentId AND IsDeleted = 0";
+                        DatabaseHelper.ExecuteNonQuery(updateStatusQuery, new SqlParameter("@TaskAssignmentId", taskAssignmentId));
                     }
 
                     int taskId = Convert.ToInt32(dt.Rows[0]["TaskId"]);
@@ -1120,13 +1291,15 @@ namespace mokipointsCS
                             {
                                 // Deduct points (to treasury, cannot go negative)
                                 int pointsToDeduct = Math.Abs(pointsAwarded);
-                                pointsSuccess = PointHelper.DeductPoints(userId, pointsToDeduct, familyId, description, null);
+                                // Pass null for orderId (not a reward order), taskAssignmentId as 6th parameter
+                                pointsSuccess = PointHelper.DeductPoints(userId, pointsToDeduct, familyId, description, null, taskAssignmentId);
                             }
 
                             if (!pointsSuccess)
                             {
-                                System.Diagnostics.Debug.WriteLine(string.Format("ReviewTask: Failed to process points for user {0}", userId));
-                                // Continue anyway - review is already recorded
+                                System.Diagnostics.Debug.WriteLine(string.Format("ReviewTask ERROR: Failed to process points for user {0}. Review will not be completed.", userId));
+                                // Don't complete review if points processing failed
+                                return false;
                             }
                         }
 
@@ -1619,6 +1792,70 @@ namespace mokipointsCS
             {
                 System.Diagnostics.Debug.WriteLine("GetUserPointTransactions error: " + ex.Message);
                 return new DataTable();
+            }
+        }
+
+        /// <summary>
+        /// Auto-fails overdue tasks in "Assigned" status for a family
+        /// Called on page load to check for overdue tasks that haven't been accepted/denied
+        /// </summary>
+        public static void AutoFailOverdueTasks(int familyId)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks: Starting for familyId={0}", familyId));
+
+                // Get family owner ID for reviewing tasks
+                int? familyOwnerId = FamilyHelper.GetFamilyOwnerId(familyId);
+                if (!familyOwnerId.HasValue)
+                {
+                    System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks: Could not get family owner for familyId={0}", familyId));
+                    return;
+                }
+
+                // Find all overdue tasks in "Assigned" or "Ongoing" status
+                string query = @"
+                    SELECT ta.Id, ta.Deadline, ta.TaskId, ta.UserId, ta.Status, t.PointsReward
+                    FROM [dbo].[TaskAssignments] ta
+                    INNER JOIN [dbo].[Tasks] t ON ta.TaskId = t.Id
+                    WHERE t.FamilyId = @FamilyId
+                      AND ta.Status IN ('Assigned', 'Ongoing')
+                      AND ta.IsDeleted = 0
+                      AND ta.Deadline IS NOT NULL
+                      AND ta.Deadline < GETDATE()";
+
+                using (DataTable dt = DatabaseHelper.ExecuteQuery(query, new SqlParameter("@FamilyId", familyId)))
+                {
+                    int count = dt.Rows.Count;
+                    System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks: Found {0} overdue tasks in 'Assigned' or 'Ongoing' status", count));
+
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        int assignmentId = Convert.ToInt32(row["Id"]);
+                        DateTime deadline = Convert.ToDateTime(row["Deadline"]);
+                        string status = row["Status"].ToString();
+                        
+                        System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks: Auto-failing assignment {0} (status: {1}, deadline: {2})", assignmentId, status, deadline));
+
+                        // Auto-fail the task
+                        if (ReviewTask(assignmentId, 0, familyOwnerId.Value, true, true)) // isFailed=true, isAutoFailed=true
+                        {
+                            System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks: Successfully auto-failed assignment {0}", assignmentId));
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks ERROR: Failed to auto-fail assignment {0}", assignmentId));
+                        }
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks: Completed for familyId={0}", familyId));
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks error: {0}", ex.Message));
+                System.Diagnostics.Debug.WriteLine(string.Format("Stack Trace: {0}", ex.StackTrace));
+                // Don't throw - this is a background check, shouldn't break page load
             }
         }
 

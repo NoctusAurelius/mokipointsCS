@@ -401,11 +401,77 @@
                 </div>
 
                 <asp:Button ID="btnAssignTask" runat="server" Text="Assign Task" CssClass="btn-submit" 
-                    ValidationGroup="AssignTask" OnClick="btnAssignTask_Click" />
+                    ValidationGroup="AssignTask" OnClick="btnAssignTask_Click" OnClientClick="return validateDeadline();" />
                 <a href="Tasks.aspx" class="btn-cancel">Cancel</a>
             </div>
         </div>
     </form>
+    
+    <script type="text/javascript">
+        function validateDeadline() {
+            var dateInput = document.getElementById('<%= txtDeadlineDate.ClientID %>');
+            var timeInput = document.getElementById('<%= txtDeadlineTime.ClientID %>');
+            
+            if (!dateInput || !dateInput.value) {
+                return true; // Deadline is optional
+            }
+            
+            var deadlineDate = new Date(dateInput.value);
+            var deadlineTime = timeInput && timeInput.value ? timeInput.value.split(':') : null;
+            
+            if (deadlineTime) {
+                deadlineDate.setHours(parseInt(deadlineTime[0]), parseInt(deadlineTime[1]), 0, 0);
+            } else {
+                // If no time specified, set to end of day (23:59)
+                deadlineDate.setHours(23, 59, 0, 0);
+            }
+            
+            var now = new Date();
+            var minDeadline = new Date(now.getTime() + (10 * 60 * 1000)); // 10 minutes from now
+            
+            if (deadlineDate <= now) {
+                alert('Deadline must be in the future. Please select a date/time that has not passed.');
+                return false;
+            }
+            
+            if (deadlineDate < minDeadline) {
+                var minTimeStr = minDeadline.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                alert('Deadline must be at least 10 minutes in the future. The earliest deadline is ' + minTimeStr + '.');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Set minimum date on page load
+        window.onload = function() {
+            var dateInput = document.getElementById('<%= txtDeadlineDate.ClientID %>');
+            if (dateInput) {
+                var today = new Date();
+                var minDate = today.toISOString().split('T')[0];
+                dateInput.setAttribute('min', minDate);
+                
+                // If today is selected, set minimum time to 10 minutes from now
+                dateInput.addEventListener('change', function() {
+                    var selectedDate = new Date(this.value);
+                    var today = new Date();
+                    if (selectedDate.toDateString() === today.toDateString()) {
+                        var timeInput = document.getElementById('<%= txtDeadlineTime.ClientID %>');
+                        if (timeInput) {
+                            var minTime = new Date(today.getTime() + (10 * 60 * 1000));
+                            var minTimeStr = minTime.toTimeString().substring(0, 5); // HH:mm format
+                            timeInput.setAttribute('min', minTimeStr);
+                        }
+                    } else {
+                        var timeInput = document.getElementById('<%= txtDeadlineTime.ClientID %>');
+                        if (timeInput) {
+                            timeInput.removeAttribute('min');
+                        }
+                    }
+                });
+            }
+        };
+    </script>
 </body>
 </html>
 

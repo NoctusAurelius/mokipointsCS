@@ -125,26 +125,44 @@ namespace mokipointsCS
                 switch (e.CommandName)
                 {
                     case "Accept":
-                        if (TaskHelper.AcceptTask(assignmentId, userId))
+                        // Check if task was auto-failed (by checking if it still exists and is in "Assigned" status)
+                        string currentStatus = TaskHelper.GetTaskAssignmentStatus(assignmentId);
+                        if (string.IsNullOrEmpty(currentStatus))
+                        {
+                            // Task was auto-failed (no longer exists or was reviewed)
+                            ShowError("This task is overdue and has been automatically failed. Points have been deducted.");
+                            LoadTasks(); // Reload to show updated task list
+                        }
+                        else if (TaskHelper.AcceptTask(assignmentId, userId))
                         {
                             ShowSuccess("Task accepted!");
                             LoadTasks();
                         }
                         else
                         {
-                            ShowError("Failed to accept task.");
+                            ShowError("Failed to accept task. The task may be overdue and has been automatically failed.");
+                            LoadTasks(); // Reload to check if task was auto-failed
                         }
                         break;
 
                     case "Decline":
-                        if (TaskHelper.DenyTask(assignmentId, userId))
+                        // Check if task was auto-failed
+                        currentStatus = TaskHelper.GetTaskAssignmentStatus(assignmentId);
+                        if (string.IsNullOrEmpty(currentStatus))
+                        {
+                            // Task was auto-failed
+                            ShowError("This task is overdue and has been automatically failed. Points have been deducted.");
+                            LoadTasks();
+                        }
+                        else if (TaskHelper.DenyTask(assignmentId, userId))
                         {
                             ShowSuccess("Task declined.");
                             LoadTasks();
                         }
                         else
                         {
-                            ShowError("Failed to decline task.");
+                            ShowError("Failed to decline task. The task may be overdue and has been automatically failed.");
+                            LoadTasks();
                         }
                         break;
 
@@ -152,14 +170,23 @@ namespace mokipointsCS
                         // Fix #1: Server-side validation - check all objectives completed
                         if (TaskHelper.AreAllObjectivesCompleted(assignmentId))
                         {
-                            if (TaskHelper.SubmitTaskForReview(assignmentId, userId))
+                            // Check if task was auto-failed (by checking if it still exists and is in "Ongoing" status)
+                            currentStatus = TaskHelper.GetTaskAssignmentStatus(assignmentId);
+                            if (string.IsNullOrEmpty(currentStatus))
+                            {
+                                // Task was auto-failed (no longer exists or was reviewed)
+                                ShowError("This task is overdue and has been automatically failed. Points have been deducted and the task has been moved to history.");
+                                LoadTasks(); // Reload to show updated task list
+                            }
+                            else if (TaskHelper.SubmitTaskForReview(assignmentId, userId))
                             {
                                 ShowSuccess("Task submitted for review!");
                                 LoadTasks();
                             }
                             else
                             {
-                                ShowError("Failed to submit task. Please ensure all objectives are completed.");
+                                ShowError("Failed to submit task. The task may be overdue and has been automatically failed. Points have been deducted.");
+                                LoadTasks(); // Reload to check if task was auto-failed
                             }
                         }
                         else

@@ -51,15 +51,6 @@ namespace mokipointsCS
         protected global::System.Web.UI.WebControls.Button btnPrivacy;
 
         /// <summary>
-        /// btnNotifications control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnNotifications;
-
-        /// <summary>
         /// btnLogout control.
         /// </summary>
         /// <remarks>
@@ -69,4 +60,3 @@ namespace mokipointsCS
         protected global::System.Web.UI.WebControls.Button btnLogout;
     }
 }
-

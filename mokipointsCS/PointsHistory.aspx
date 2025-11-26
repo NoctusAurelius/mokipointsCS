@@ -4,6 +4,7 @@
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
+    <meta charset="utf-8" />
     <title>Points History - MOKI POINTS</title>
     <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
@@ -197,10 +198,83 @@
             margin-bottom: 10px;
         }
         
+        .summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .max-cap-indicator {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+        
+        .max-points {
+            font-weight: bold;
+        }
+        
+        .progress-container {
+            margin-bottom: 20px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+            border-radius: 6px;
+            width: 0%;
+            transition: width 1s ease-out, background-color 0.3s;
+            animation: progressPulse 2s ease-in-out infinite;
+        }
+        
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #ffc107 0%, #ff9800 100%);
+        }
+        
+        .progress-fill.danger {
+            background: linear-gradient(90deg, #dc3545 0%, #c82333 100%);
+        }
+        
+        .progress-text {
+            text-align: right;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        @keyframes progressPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        @keyframes countUp {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
         .summary-value {
             font-size: 48px;
             font-weight: bold;
             margin-bottom: 10px;
+            animation: countUp 0.5s ease-out;
+        }
+        
+        .summary-value.pulse {
+            animation: pulse 1s ease-in-out;
+        }
+        
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
         
         /* Transactions List */
@@ -363,10 +437,26 @@
 
             <!-- Points Summary -->
             <div class="points-summary">
-                <div class="summary-label">Your Total Points</div>
-                <div class="summary-value">
-                    <asp:Literal ID="litTotalPoints" runat="server">0</asp:Literal>
+                <div class="summary-header">
+                    <div class="summary-label">Your Total Points</div>
+                    <div class="max-cap-indicator">
+                        <span id="currentPoints">0</span> / <span class="max-points">10,000</span>
+                    </div>
                 </div>
+                
+                <!-- Progress Bar -->
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0%</div>
+                </div>
+                
+                <!-- Animated Points Display -->
+                <div class="summary-value" id="animatedPoints">0</div>
+                
+                <!-- Hidden field for server value -->
+                <asp:HiddenField ID="litTotalPoints" runat="server" Value="0" />
             </div>
 
             <!-- Transactions List -->
@@ -376,10 +466,10 @@
                         <ItemTemplate>
                             <div class="transaction-card <%# Eval("TransactionType").ToString().ToLower() %>">
                                 <div class="transaction-icon">
-                                    <%# Eval("TransactionType").ToString() == "Earned" ? "💰" : "🛒" %>
+                                    <%# Eval("TransactionType").ToString() == "Earned" ? "&#128176;" : "&#128722;" %>
                                 </div>
                                 <div class="transaction-info">
-                                    <div class="transaction-description"><%# Eval("Description") %></div>
+                                    <div class="transaction-description"><%# Eval("Description") != null ? Eval("Description").ToString() : "" %></div>
                                     <div class="transaction-date"><%# Convert.ToDateTime(Eval("TransactionDate")).ToString("MMM dd, yyyy HH:mm") %></div>
                                 </div>
                                 <div class="transaction-amount <%# Eval("TransactionType").ToString().ToLower() %>">
@@ -400,6 +490,73 @@
             </asp:Panel>
         </div>
     </form>
+    <script>
+        function animatePointsCounter() {
+            var pointsElement = document.getElementById('animatedPoints');
+            var progressFill = document.getElementById('progressFill');
+            var progressText = document.getElementById('progressText');
+            var currentPointsElement = document.getElementById('currentPoints');
+            
+            // Get actual points value from hidden field
+            var actualPoints = parseInt(document.getElementById('<%= litTotalPoints.ClientID %>').value.replace(/,/g, '')) || 0;
+            var maxPoints = 10000;
+            var percentage = Math.min((actualPoints / maxPoints) * 100, 100);
+            
+            // Animate counter
+            var startPoints = 0;
+            var duration = 1500; // 1.5 seconds
+            var startTime = Date.now();
+            
+            function updateCounter() {
+                var elapsed = Date.now() - startTime;
+                var progress = Math.min(elapsed / duration, 1);
+                
+                // Easing function (ease-out)
+                var easeOut = 1 - Math.pow(1 - progress, 3);
+                var currentPoints = Math.floor(startPoints + (actualPoints - startPoints) * easeOut);
+                
+                // Update display
+                pointsElement.textContent = currentPoints.toLocaleString();
+                currentPointsElement.textContent = currentPoints.toLocaleString();
+                
+                // Update progress bar
+                var currentPercentage = (currentPoints / maxPoints) * 100;
+                progressFill.style.width = currentPercentage + '%';
+                progressText.textContent = Math.floor(currentPercentage) + '%';
+                
+                // Change color based on progress
+                if (currentPercentage >= 90) {
+                    progressFill.className = 'progress-fill danger';
+                } else if (currentPercentage >= 70) {
+                    progressFill.className = 'progress-fill warning';
+                } else {
+                    progressFill.className = 'progress-fill';
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    // Final update
+                    pointsElement.textContent = actualPoints.toLocaleString();
+                    currentPointsElement.textContent = actualPoints.toLocaleString();
+                    progressFill.style.width = percentage + '%';
+                    progressText.textContent = Math.floor(percentage) + '%';
+                    
+                    // Celebration if at or near cap
+                    if (actualPoints >= maxPoints * 0.9) {
+                        pointsElement.classList.add('pulse');
+                    }
+                }
+            }
+            
+            updateCounter();
+        }
+        
+        // Run animation on page load
+        window.addEventListener('load', function() {
+            setTimeout(animatePointsCounter, 300); // Small delay for smooth start
+        });
+    </script>
 </body>
 </html>
 

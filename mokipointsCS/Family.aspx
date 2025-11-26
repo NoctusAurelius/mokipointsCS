@@ -834,6 +834,7 @@
             word-wrap: break-word;
             position: relative;
             display: inline-block;
+            width: fit-content;
             max-width: 100%;
         }
 

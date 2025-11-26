@@ -57,7 +57,7 @@ namespace mokipointsCS
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Literal litTotalPoints;
+        protected global::System.Web.UI.WebControls.HiddenField litTotalPoints;
 
         /// <summary>
         /// pnlTransactions control.

@@ -13,6 +13,11 @@ namespace mokipointsCS
             System.Diagnostics.Debug.WriteLine("PointsHistory.aspx Page_Load called at " + DateTime.Now.ToString());
             try
             {
+                // Set UTF-8 encoding for proper character display
+                Response.ContentType = "text/html";
+                Response.Charset = "utf-8";
+                Response.ContentEncoding = System.Text.Encoding.UTF8;
+                
                 // Check authentication
                 if (Session["UserId"] == null)
                 {
@@ -123,7 +128,8 @@ namespace mokipointsCS
                 
                 System.Diagnostics.Debug.WriteLine("LoadPointTransactions: Current balance from database = " + totalPoints);
                 
-                litTotalPoints.Text = totalPoints.ToString("N0");
+                // Store in hidden field for JavaScript animation
+                litTotalPoints.Value = totalPoints.ToString("N0");
                 
                 DataTable transactions = TaskHelper.GetUserPointTransactions(userId);
                 
@@ -157,7 +163,7 @@ namespace mokipointsCS
                 LogError("LoadPointTransactions", ex);
                 pnlTransactions.Visible = false;
                 pnlEmpty.Visible = true;
-                litTotalPoints.Text = "0";
+                litTotalPoints.Value = "0";
             }
         }
 

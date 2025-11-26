@@ -57,12 +57,6 @@ namespace mokipointsCS
             Response.Redirect("PrivacyPolicy.aspx?from=settings", false);
         }
 
-        protected void btnNotifications_Click(object sender, EventArgs e)
-        {
-            System.Diagnostics.Debug.WriteLine("Settings: Notifications button clicked");
-            // TODO: Route to notifications preference page
-        }
-
         protected void btnLogout_Click(object sender, EventArgs e)
         {
             System.Diagnostics.Debug.WriteLine("Settings: Logout button clicked");

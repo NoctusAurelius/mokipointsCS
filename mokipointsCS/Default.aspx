@@ -168,6 +168,9 @@
             background-attachment: fixed;
             position: relative;
             overflow: hidden;
+            max-width: 100%;
+            width: 100%;
+            margin: 0;
         }
         
         #hero::before {
@@ -662,7 +665,7 @@
         </nav>
 
         <!-- Hero Section -->
-        <section id="hero" class="section">
+        <section id="hero">
             <div class="hero-branding">
                 <span class="moki">MOKI</span><span class="points"> POINTS</span>
             </div>

@@ -129,7 +129,9 @@ namespace mokipointsCS
                             {
                                 cmd.Parameters.AddWithValue("@UserId", userId);
                                 cmd.Parameters.AddWithValue("@Points", points);
-                                cmd.Parameters.AddWithValue("@Description", description ?? "Points awarded");
+                                var descParam = new SqlParameter("@Description", SqlDbType.NVarChar, 500);
+                                descParam.Value = description ?? "Points awarded";
+                                cmd.Parameters.Add(descParam);
                                 cmd.Parameters.AddWithValue("@TaskAssignmentId", taskAssignmentId ?? (object)DBNull.Value);
                                 pointTransactionId = Convert.ToInt32(cmd.ExecuteScalar());
                             }

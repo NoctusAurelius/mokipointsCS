@@ -14,6 +14,11 @@ namespace mokipointsCS
         {
             try
             {
+                // Set UTF-8 encoding for proper character display
+                Response.ContentType = "text/html";
+                Response.Charset = "utf-8";
+                Response.ContentEncoding = System.Text.Encoding.UTF8;
+                
                 // Check authentication
                 if (Session["UserId"] == null)
                 {
@@ -78,10 +83,31 @@ namespace mokipointsCS
                         string[] parts = eventArgument.Split('|');
                         if (parts.Length == 2)
                         {
-                            int rewardId = Convert.ToInt32(parts[0]);
-                            int quantity = Convert.ToInt32(parts[1]);
-                            UpdateCartQuantity(rewardId, quantity);
-                            LoadCart();
+                            try
+                            {
+                                int rewardId = Convert.ToInt32(parts[0]);
+                                int quantity = Convert.ToInt32(parts[1]);
+                                
+                                System.Diagnostics.Debug.WriteLine(string.Format("Postback: UpdateQuantity - RewardId={0}, Quantity={1}", rewardId, quantity));
+                                
+                                string errorMessage;
+                                if (UpdateCartQuantity(rewardId, quantity, out errorMessage))
+                                {
+                                    LoadCart();
+                                    ShowSuccess("Quantity updated successfully.");
+                                }
+                                else
+                                {
+                                    ShowError(errorMessage);
+                                    LoadCart(); // Reload to show correct quantities
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine(string.Format("Postback UpdateQuantity ERROR: {0}", ex.Message));
+                                ShowError("Invalid quantity. Please enter a valid number.");
+                                LoadCart();
+                            }
                         }
                     }
                 }
@@ -150,8 +176,8 @@ namespace mokipointsCS
                     pnlCart.Visible = true;
                     pnlEmpty.Visible = false;
 
-                    litSubtotal.Text = totalPoints + " points";
-                    litTotal.Text = totalPoints + " points";
+                    litSubtotal.Text = totalPoints.ToString("N0") + " points";
+                    litTotal.Text = totalPoints.ToString("N0") + " points";
 
                     // Check if child has enough points
                     if (pointsBalance < totalPoints)
@@ -208,29 +234,130 @@ namespace mokipointsCS
             {
                 DataRowView row = (DataRowView)e.Item.DataItem;
                 int subtotal = Convert.ToInt32(row["Subtotal"]);
+                int rewardId = Convert.ToInt32(row["RewardId"]);
 
                 Literal litSubtotal = (Literal)e.Item.FindControl("litSubtotal");
                 if (litSubtotal != null)
                 {
-                    litSubtotal.Text = subtotal + " points";
+                    litSubtotal.Text = subtotal.ToString("N0") + " points";
+                }
+                
+                // Set ID for quantity input so JavaScript can find it
+                // We need to use ClientIDMode.Static and set a unique ID
+                TextBox txtQuantity = (TextBox)e.Item.FindControl("txtQuantity");
+                if (txtQuantity != null)
+                {
+                    // Set ClientIDMode to Static so we can control the ID
+                    txtQuantity.ClientIDMode = ClientIDMode.Static;
+                    // Set the ID to quantity_rewardId format
+                    txtQuantity.ID = "quantity_" + rewardId;
                 }
             }
         }
 
-        private void UpdateCartQuantity(int rewardId, int quantity)
+        private bool UpdateCartQuantity(int rewardId, int quantity, out string errorMessage)
         {
-            Dictionary<int, int> cart = Session["Cart"] as Dictionary<int, int>;
-            if (cart != null && cart.ContainsKey(rewardId))
+            errorMessage = string.Empty;
+            
+            try
             {
-                if (quantity <= 0)
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: Starting - RewardId={0}, RequestedQuantity={1}", rewardId, quantity));
+                
+                // Validate input
+                if (quantity < 1)
                 {
-                    cart.Remove(rewardId);
+                    errorMessage = "Quantity must be at least 1.";
+                    System.Diagnostics.Debug.WriteLine("UpdateCartQuantity: Validation failed - quantity < 1");
+                    return false;
                 }
-                else
+                
+                // Get user ID and points balance
+                int userId = Convert.ToInt32(Session["UserId"]);
+                int pointsBalance = PointHelper.GetChildBalance(userId);
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: UserId={0}, PointsBalance={1}", userId, pointsBalance));
+                
+                // Get reward details
+                DataRow reward = RewardHelper.GetRewardDetails(rewardId);
+                if (reward == null)
                 {
-                    cart[rewardId] = quantity;
+                    errorMessage = "Reward not found.";
+                    System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: Reward not found - RewardId={0}", rewardId));
+                    return false;
                 }
+                
+                int pointCost = Convert.ToInt32(reward["PointCost"]);
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: Reward PointCost={0}", pointCost));
+                
+                // Get current cart
+                Dictionary<int, int> cart = Session["Cart"] as Dictionary<int, int>;
+                if (cart == null || !cart.ContainsKey(rewardId))
+                {
+                    errorMessage = "Item not found in cart.";
+                    System.Diagnostics.Debug.WriteLine("UpdateCartQuantity: Item not in cart");
+                    return false;
+                }
+                
+                // Calculate total cost of other items in cart (excluding this item)
+                int otherItemsCost = 0;
+                foreach (var item in cart)
+                {
+                    if (item.Key != rewardId)
+                    {
+                        DataRow otherReward = RewardHelper.GetRewardDetails(item.Key);
+                        if (otherReward != null)
+                        {
+                            otherItemsCost += Convert.ToInt32(otherReward["PointCost"]) * item.Value;
+                        }
+                    }
+                }
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: OtherItemsCost={0}", otherItemsCost));
+                
+                // Calculate available points for this item
+                int availablePoints = pointsBalance - otherItemsCost;
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: AvailablePoints={0}", availablePoints));
+                
+                // Calculate maximum affordable quantity
+                int maxAffordableQuantity = availablePoints / pointCost;
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: MaxAffordableQuantity={0}", maxAffordableQuantity));
+                
+                // Validate requested quantity
+                if (quantity > maxAffordableQuantity)
+                {
+                    errorMessage = string.Format("You can only afford {0} of this item. You have {1} points available after other cart items.", 
+                        maxAffordableQuantity, availablePoints);
+                    System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: Quantity exceeds affordable amount - Requested={0}, Max={1}", quantity, maxAffordableQuantity));
+                    return false;
+                }
+                
+                // Calculate total cost with new quantity
+                int newItemCost = pointCost * quantity;
+                int totalCartCost = otherItemsCost + newItemCost;
+                
+                if (totalCartCost > pointsBalance)
+                {
+                    errorMessage = string.Format("You don't have enough points. Total cart cost would be {0} points, but you only have {1} points.", 
+                        totalCartCost, pointsBalance);
+                    System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: Insufficient points - TotalCost={0}, Balance={1}", totalCartCost, pointsBalance));
+                    return false;
+                }
+                
+                // Update quantity
+                cart[rewardId] = quantity;
                 Session["Cart"] = cart;
+                
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity: Success - Quantity updated to {0}", quantity));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = "An error occurred while updating quantity. Please try again.";
+                System.Diagnostics.Debug.WriteLine(string.Format("UpdateCartQuantity ERROR: {0}", ex.Message));
+                System.Diagnostics.Debug.WriteLine(string.Format("Stack Trace: {0}", ex.StackTrace));
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine(string.Format("Inner Exception: {0}", ex.InnerException.Message));
+                }
+                return false;
             }
         }
 
@@ -279,7 +406,10 @@ namespace mokipointsCS
                 // Check if child can afford
                 if (!PointHelper.CanAffordPurchase(userId, totalPoints))
                 {
-                    ShowError("You don't have enough points for this purchase.");
+                    int pointsBalance = PointHelper.GetChildBalance(userId);
+                    int pointsNeeded = totalPoints - pointsBalance;
+                    ShowError(string.Format("You don't have enough points for this purchase. You need {0:N0} more points.", pointsNeeded));
+                    LoadCart(); // Reload cart to show updated state
                     return;
                 }
 

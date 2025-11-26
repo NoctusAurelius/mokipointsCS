@@ -150,11 +150,6 @@
             color: #9c27b0;
         }
         
-        .settings-icon.notifications {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-        }
-        
         .settings-icon.logout {
             background-color: #ffebee;
             color: #d32f2f;
@@ -462,19 +457,6 @@
                     </div>
                     <div class="settings-arrow"></div>
                     <asp:Button ID="btnPrivacy" runat="server" OnClick="btnPrivacy_Click" style="display: none;" />
-                </div>
-
-                <!-- Notifications Preference -->
-                <div class="settings-item" onclick="document.getElementById('<%= btnNotifications.ClientID %>').click();">
-                    <div class="settings-item-content">
-                        <div class="settings-icon notifications">N</div>
-                        <div class="settings-text">
-                            <div class="settings-title">Notifications Preference</div>
-                            <div class="settings-description">Manage your notification settings</div>
-                        </div>
-                    </div>
-                    <div class="settings-arrow"></div>
-                    <asp:Button ID="btnNotifications" runat="server" OnClick="btnNotifications_Click" style="display: none;" />
                 </div>
 
                 <!-- Logout -->

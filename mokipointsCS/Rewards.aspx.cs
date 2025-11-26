@@ -237,31 +237,53 @@ namespace mokipointsCS
         {
             try
             {
+                // Validate page before processing (Fix #1)
+                if (!Page.IsValid)
+                {
+                    ShowError("Please fill in all required fields correctly.");
+                    // Don't close modal - keep it open to show errors
+                    return;
+                }
+
                 int userId = Convert.ToInt32(Session["UserId"]);
                 int? familyId = FamilyHelper.GetUserFamilyId(userId);
 
                 if (!familyId.HasValue)
                 {
                     ShowError("You must be in a family to create rewards.");
-                    return;
+                    return; // Keep modal open
                 }
 
                 string name = txtCreateName.Text.Trim();
                 string description = txtCreateDescription.Text.Trim();
-                int pointCost = Convert.ToInt32(txtCreatePointCost.Text);
+                
+                // Validate point cost with proper error handling (Fix #1)
+                int pointCost = 0;
+                if (string.IsNullOrEmpty(txtCreatePointCost.Text.Trim()))
+                {
+                    ShowError("Point cost is required.");
+                    return; // Keep modal open
+                }
+                
+                if (!int.TryParse(txtCreatePointCost.Text.Trim(), out pointCost))
+                {
+                    ShowError("Point cost must be a valid number.");
+                    return; // Keep modal open
+                }
+                
+                if (pointCost <= 0)
+                {
+                    ShowError("Point cost must be greater than 0.");
+                    return; // Keep modal open
+                }
+                
                 string category = ddlCreateCategory.SelectedValue;
                 string imageUrl = txtCreateImageUrl.Text.Trim();
 
                 if (string.IsNullOrEmpty(name))
                 {
                     ShowError("Reward name is required.");
-                    return;
-                }
-
-                if (pointCost <= 0)
-                {
-                    ShowError("Point cost must be greater than 0.");
-                    return;
+                    return; // Keep modal open
                 }
 
                 bool success = RewardHelper.CreateReward(familyId.Value, userId, name, 
@@ -274,18 +296,21 @@ namespace mokipointsCS
                 {
                     ShowSuccess("Reward created successfully!");
                     LoadRewards();
+                    // Only close modal on success
                     ScriptManager.RegisterStartupScript(this, GetType(), "CloseCreateModal", "closeCreateModal();", true);
                 }
                 else
                 {
                     ShowError("Failed to create reward. Please try again.");
+                    // Don't close modal - keep it open to show error
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("btnCreateRewardSubmit_Click error: " + ex.Message);
                 System.Diagnostics.Debug.WriteLine("Stack Trace: " + ex.StackTrace);
-                ShowError("An error occurred while creating the reward.");
+                ShowError("An error occurred while creating the reward: " + ex.Message);
+                // Don't close modal - keep it open to show error
             }
         }
 

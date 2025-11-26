@@ -1164,6 +1164,7 @@
                         
                         <div class="form-group">
                             <label>Objectives <span class="required">*</span></label>
+                            <small class="form-text" style="display: block; color: #666; margin-bottom: 10px; font-size: 12px;">At least one objective is required</small>
                             <div id="createObjectivesContainer" class="objectives-container">
                                 <div class="objective-item">
                                     <input type="text" name="objective_0" class="form-control" placeholder="Enter objective" />

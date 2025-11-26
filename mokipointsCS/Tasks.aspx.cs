@@ -213,8 +213,11 @@ namespace mokipointsCS
         {
             try
             {
+                // Validate page before processing (Fix #2)
                 if (!Page.IsValid)
                 {
+                    ShowError("Please fill in all required fields correctly.");
+                    // Don't close modal - keep it open to show errors
                     return;
                 }
 
@@ -224,7 +227,7 @@ namespace mokipointsCS
                 if (!familyId.HasValue)
                 {
                     ShowError("You must be in a family to create tasks.");
-                    return;
+                    return; // Keep modal open
                 }
 
                 // Collect objectives from form
@@ -243,24 +246,63 @@ namespace mokipointsCS
 
                 if (objectives.Count == 0)
                 {
-                    ShowError("At least one objective is required.");
-                    return;
+                    ShowError("At least one objective is required. Please add at least one objective before creating the task.");
+                    return; // Keep modal open
                 }
 
                 // Get form values
                 string title = txtCreateTitle.Text.Trim();
                 string description = txtCreateDescription.Text.Trim();
                 string category = ddlCreateCategory.SelectedValue;
-                int points = Convert.ToInt32(txtCreatePoints.Text);
+                
+                // Validate points with proper error handling (Fix #2)
+                int points = 0;
+                if (string.IsNullOrEmpty(txtCreatePoints.Text.Trim()))
+                {
+                    ShowError("Points is required.");
+                    return; // Keep modal open
+                }
+                
+                if (!int.TryParse(txtCreatePoints.Text.Trim(), out points))
+                {
+                    ShowError("Points must be a valid number.");
+                    return; // Keep modal open
+                }
+                
+                if (points <= 0)
+                {
+                    ShowError("Points must be greater than 0.");
+                    return; // Keep modal open
+                }
+                
                 string priority = ddlCreatePriority.SelectedValue;
                 string difficulty = ddlCreateDifficulty.SelectedValue;
                 int? estimatedMinutes = null;
                 if (!string.IsNullOrEmpty(txtCreateEstimatedMinutes.Text))
                 {
-                    estimatedMinutes = Convert.ToInt32(txtCreateEstimatedMinutes.Text);
+                    if (!int.TryParse(txtCreateEstimatedMinutes.Text, out int estMins))
+                    {
+                        ShowError("Estimated minutes must be a valid number.");
+                        return; // Keep modal open
+                    }
+                    estimatedMinutes = estMins;
                 }
                 string instructions = txtCreateInstructions.Text.Trim();
                 string recurrencePattern = ddlCreateRecurrence.SelectedValue;
+
+                // Validate title
+                if (string.IsNullOrEmpty(title))
+                {
+                    ShowError("Task title is required.");
+                    return; // Keep modal open
+                }
+
+                // Validate category
+                if (string.IsNullOrEmpty(category))
+                {
+                    ShowError("Category is required.");
+                    return; // Keep modal open
+                }
 
                 // Create task
                 int taskId = TaskHelper.CreateTask(title, description, category, points, userId, familyId.Value, objectives,
@@ -272,18 +314,21 @@ namespace mokipointsCS
                 {
                     ShowSuccess("Task created successfully!");
                     LoadTasks();
-                    // Close modal via JavaScript
+                    // Only close modal on success
                     ScriptManager.RegisterStartupScript(this, GetType(), "CloseCreateModal", "closeCreateModal();", true);
                 }
                 else
                 {
                     ShowError("Failed to create task. Please try again.");
+                    // Don't close modal - keep it open to show error
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("btnCreateTaskSubmit_Click error: " + ex.Message);
-                ShowError("An error occurred while creating the task.");
+                System.Diagnostics.Debug.WriteLine("Stack Trace: " + ex.StackTrace);
+                ShowError("An error occurred while creating the task: " + ex.Message);
+                // Don't close modal - keep it open to show error
             }
         }
 

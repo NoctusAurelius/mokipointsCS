@@ -304,9 +304,39 @@ namespace mokipointsCS
                     else if (timeRemaining.TotalDays < 1)
                     {
                         // Less than 1 day
-                        pnlDeadlineWarning.CssClass = "deadline-warning orange";
                         int hours = (int)timeRemaining.TotalHours;
-                        litDeadlineWarning.Text = string.Format("⚠️ Deadline in {0} hour(s)!", hours);
+                        int minutes = timeRemaining.Minutes;
+                        int totalMinutes = (int)timeRemaining.TotalMinutes;
+                        
+                        string timeText = "";
+                        if (hours > 0)
+                        {
+                            // More than 1 hour - show hours and minutes
+                            pnlDeadlineWarning.CssClass = "deadline-warning orange";
+                            timeText = hours == 1 ? "1 hour" : string.Format("{0} hours", hours);
+                            if (minutes > 0 && hours < 12) // Show minutes if less than 12 hours
+                            {
+                                timeText += minutes == 1 ? " 1 minute" : string.Format(" {0} minutes", minutes);
+                            }
+                        }
+                        else
+                        {
+                            // Less than 1 hour - show minutes countdown (CRITICAL)
+                            pnlDeadlineWarning.CssClass = "deadline-warning red"; // Red for urgency
+                            timeText = totalMinutes == 1 ? "1 minute" : string.Format("{0} minutes", totalMinutes);
+                        }
+                        
+                        // Include deadline time for reference
+                        string deadlineTime = deadline.ToString("h:mm tt");
+                        litDeadlineWarning.Text = string.Format(
+                            "<span class='deadline-icon'>⏰</span> " +
+                            "<span class='deadline-text'>Deadline in <strong>{0}</strong> ({1})</span>", 
+                            timeText, deadlineTime);
+                        
+                        // Add data attributes for JavaScript countdown updates
+                        pnlDeadlineWarning.Attributes["data-deadline"] = deadline.ToString("yyyy-MM-ddTHH:mm:ss");
+                        pnlDeadlineWarning.Attributes["data-total-minutes"] = totalMinutes.ToString();
+                        
                         pnlDeadlineWarning.Visible = true;
                     }
                     else if (timeRemaining.TotalDays < 2)

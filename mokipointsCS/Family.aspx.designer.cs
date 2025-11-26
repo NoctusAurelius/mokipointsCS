@@ -51,6 +51,15 @@ namespace mokipointsCS
         protected global::System.Web.UI.WebControls.Literal litUserName;
 
         /// <summary>
+        /// pnlReviewLink control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Panel pnlReviewLink;
+
+        /// <summary>
         /// btnLogout control.
         /// </summary>
         /// <remarks>

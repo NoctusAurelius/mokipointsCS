@@ -248,6 +248,14 @@
             opacity: 0.7;
         }
         
+        /* Validation Error Messages */
+        .error-message {
+            color: #d32f2f;
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
+        
         .message-close:hover {
             opacity: 1;
         }
@@ -1062,16 +1070,40 @@
                     </div>
                     <div id="createRewardForm">
                         <div class="form-group">
-                            <label class="form-label">Reward Name *</label>
+                            <label class="form-label">Reward Name <span style="color: #d32f2f;">*</span></label>
                             <asp:TextBox ID="txtCreateName" runat="server" CssClass="form-control" placeholder="Enter reward name"></asp:TextBox>
+                            <asp:RequiredFieldValidator ID="rfvCreateName" runat="server" 
+                                ControlToValidate="txtCreateName" 
+                                ErrorMessage="Reward name is required." 
+                                ValidationGroup="CreateReward" 
+                                Display="Dynamic" 
+                                CssClass="error-message" 
+                                ForeColor="#d32f2f" />
                         </div>
                         <div class="form-group">
                             <label class="form-label">Description</label>
                             <asp:TextBox ID="txtCreateDescription" runat="server" CssClass="form-control" TextMode="MultiLine" Rows="3" placeholder="Enter reward description"></asp:TextBox>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Point Cost *</label>
+                            <label class="form-label">Point Cost <span style="color: #d32f2f;">*</span></label>
                             <asp:TextBox ID="txtCreatePointCost" runat="server" CssClass="form-control" TextMode="Number" min="1" placeholder="Enter point cost"></asp:TextBox>
+                            <asp:RequiredFieldValidator ID="rfvCreatePointCost" runat="server" 
+                                ControlToValidate="txtCreatePointCost" 
+                                ErrorMessage="Point cost is required." 
+                                ValidationGroup="CreateReward" 
+                                Display="Dynamic" 
+                                CssClass="error-message" 
+                                ForeColor="#d32f2f" />
+                            <asp:RangeValidator ID="rvCreatePointCost" runat="server" 
+                                ControlToValidate="txtCreatePointCost" 
+                                Type="Integer" 
+                                MinimumValue="1" 
+                                MaximumValue="999999" 
+                                ErrorMessage="Point cost must be between 1 and 999,999." 
+                                ValidationGroup="CreateReward" 
+                                Display="Dynamic" 
+                                CssClass="error-message" 
+                                ForeColor="#d32f2f" />
                         </div>
                         <div class="form-group">
                             <label class="form-label">Category</label>
@@ -1087,7 +1119,7 @@
                             <label class="form-label">Image URL</label>
                             <asp:TextBox ID="txtCreateImageUrl" runat="server" CssClass="form-control" placeholder="Enter image URL (optional)"></asp:TextBox>
                         </div>
-                        <asp:Button ID="btnCreateRewardSubmit" runat="server" Text="Create Reward" CssClass="btn-submit" OnClick="btnCreateRewardSubmit_Click" />
+                        <asp:Button ID="btnCreateRewardSubmit" runat="server" Text="Create Reward" CssClass="btn-submit" OnClick="btnCreateRewardSubmit_Click" ValidationGroup="CreateReward" />
                         <button type="button" class="btn-cancel" onclick="closeCreateModal()">Cancel</button>
                     </div>
                 </div>

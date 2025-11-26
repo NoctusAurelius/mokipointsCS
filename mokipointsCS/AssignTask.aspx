@@ -307,6 +307,43 @@
             color: #d32f2f;
             font-size: 12px;
             margin-top: 5px;
+            display: block;
+        }
+        
+        .form-control.error {
+            border-color: #d32f2f;
+            border-width: 2px;
+        }
+        
+        .validation-error-message {
+            background-color: #ffebee;
+            color: #d32f2f;
+            padding: 12px 16px;
+            border-radius: 5px;
+            border-left: 4px solid #d32f2f;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            animation: slideDown 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .validation-error-message::before {
+            content: "⚠️";
+            font-size: 18px;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
@@ -393,12 +430,15 @@
                     <div class="form-group">
                         <label>Deadline Date (Optional)</label>
                         <asp:TextBox ID="txtDeadlineDate" runat="server" CssClass="form-control" TextMode="Date" />
+                        <div id="deadlineDateError" class="error-message" style="display: none;"></div>
                     </div>
                     <div class="form-group">
                         <label>Deadline Time (Optional)</label>
                         <asp:TextBox ID="txtDeadlineTime" runat="server" CssClass="form-control" TextMode="Time" />
+                        <div id="deadlineTimeError" class="error-message" style="display: none;"></div>
                     </div>
                 </div>
+                <div id="deadlineValidationError" class="validation-error-message" style="display: none;"></div>
 
                 <asp:Button ID="btnAssignTask" runat="server" Text="Assign Task" CssClass="btn-submit" 
                     ValidationGroup="AssignTask" OnClick="btnAssignTask_Click" OnClientClick="return validateDeadline();" />
@@ -411,6 +451,18 @@
         function validateDeadline() {
             var dateInput = document.getElementById('<%= txtDeadlineDate.ClientID %>');
             var timeInput = document.getElementById('<%= txtDeadlineTime.ClientID %>');
+            var dateError = document.getElementById('deadlineDateError');
+            var timeError = document.getElementById('deadlineTimeError');
+            var validationError = document.getElementById('deadlineValidationError');
+            
+            // Clear previous errors
+            if (dateError) dateError.style.display = 'none';
+            if (timeError) timeError.style.display = 'none';
+            if (validationError) validationError.style.display = 'none';
+            
+            // Remove error styling
+            if (dateInput) dateInput.classList.remove('error');
+            if (timeInput) timeInput.classList.remove('error');
             
             if (!dateInput || !dateInput.value) {
                 return true; // Deadline is optional
@@ -430,17 +482,33 @@
             var minDeadline = new Date(now.getTime() + (10 * 60 * 1000)); // 10 minutes from now
             
             if (deadlineDate <= now) {
-                alert('Deadline must be in the future. Please select a date/time that has not passed.');
+                showDeadlineError('Deadline must be in the future. Please select a date/time that has not passed.', dateInput, timeInput, dateError, timeError, validationError);
                 return false;
             }
             
             if (deadlineDate < minDeadline) {
                 var minTimeStr = minDeadline.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                alert('Deadline must be at least 10 minutes in the future. The earliest deadline is ' + minTimeStr + '.');
+                showDeadlineError('Deadline must be at least 10 minutes in the future. The earliest deadline is ' + minTimeStr + '.', dateInput, timeInput, dateError, timeError, validationError);
                 return false;
             }
             
             return true;
+        }
+        
+        function showDeadlineError(message, dateInput, timeInput, dateError, timeError, validationError) {
+            // Add error styling to inputs
+            if (dateInput) dateInput.classList.add('error');
+            if (timeInput) timeInput.classList.add('error');
+            
+            // Show validation error message
+            if (validationError) {
+                validationError.textContent = message;
+                validationError.style.display = 'flex';
+                // Auto-hide after 5 seconds
+                setTimeout(function() {
+                    validationError.style.display = 'none';
+                }, 5000);
+            }
         }
         
         // Set minimum date on page load

@@ -70,6 +70,12 @@ namespace mokipointsCS
                     // Load profile picture
                     LoadProfilePicture(userId);
                     
+                    // Show Review link only for parents (Fix #3)
+                    if (pnlReviewLink != null)
+                    {
+                        pnlReviewLink.Visible = (userRole == "PARENT");
+                    }
+                    
                     // Check for query string messages
                     if (Request.QueryString["left"] == "true")
                     {

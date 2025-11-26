@@ -295,11 +295,53 @@
         
         /* Deadline Warning */
         .deadline-warning {
-            padding: 10px;
-            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 8px;
             margin-bottom: 15px;
             font-size: 14px;
             font-weight: 500;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        .deadline-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .deadline-text {
+            flex: 1;
+        }
+        
+        .deadline-text strong {
+            font-weight: 600;
+            color: inherit;
+        }
+        
+        .deadline-warning.orange .deadline-icon {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .deadline-warning.red .deadline-icon {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         .deadline-warning.green {
@@ -549,6 +591,58 @@
                 submitBtn.disabled = !allCompleted;
             }
         }
+        
+        // Update deadline countdown - more frequent when time is critical (Improvement #2)
+        function updateDeadlineCountdowns() {
+            var warnings = document.querySelectorAll('.deadline-warning[data-deadline]');
+            warnings.forEach(function(warning) {
+                var deadlineText = warning.querySelector('.deadline-text');
+                if (!deadlineText) return;
+                
+                var deadlineDateStr = warning.getAttribute('data-deadline');
+                if (!deadlineDateStr) return;
+                
+                var deadlineDate = new Date(deadlineDateStr);
+                var now = new Date();
+                var timeRemaining = deadlineDate - now;
+                
+                if (timeRemaining <= 0) {
+                    // Overdue
+                    warning.className = 'deadline-warning red';
+                    deadlineText.innerHTML = '<span class="deadline-icon">⚠️</span> <span class="deadline-text">This task is overdue!</span>';
+                    return;
+                }
+                
+                var totalMinutes = Math.floor(timeRemaining / (1000 * 60));
+                var hours = Math.floor(timeRemaining / (1000 * 60 * 60));
+                var minutes = totalMinutes % 60;
+                
+                var timeText = "";
+                var deadlineTime = deadlineDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                
+                if (hours > 0) {
+                    // More than 1 hour - show hours and minutes
+                    timeText = hours == 1 ? "1 hour" : hours + " hours";
+                    if (minutes > 0 && hours < 12) {
+                        timeText += " " + (minutes == 1 ? "1 minute" : minutes + " minutes");
+                    }
+                    warning.className = 'deadline-warning orange';
+                } else {
+                    // Less than 1 hour - show minutes countdown (CRITICAL)
+                    timeText = totalMinutes == 1 ? "1 minute" : totalMinutes + " minutes";
+                    warning.className = 'deadline-warning red'; // Red for urgency
+                }
+                
+                deadlineText.innerHTML = 'Deadline in <strong>' + timeText + '</strong> (' + deadlineTime + ')';
+            });
+        }
+        
+        // Update every 30 seconds when page is visible (more frequent for critical countdown)
+        var updateInterval = 30000; // 30 seconds
+        setInterval(updateDeadlineCountdowns, updateInterval);
+        
+        // Also update immediately on page load
+        updateDeadlineCountdowns();
     </script>
 </head>
 <body>

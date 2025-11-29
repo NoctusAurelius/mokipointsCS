@@ -322,6 +322,12 @@ namespace mokipointsCS
                 }
 
                 System.Diagnostics.Debug.WriteLine(string.Format("DepositToTreasury SUCCESS: FamilyId={0}, Amount={1}, BalanceBefore={2}, BalanceAfter={3}", familyId, amount, currentBalance, newBalance));
+                
+                // Check treasury achievement milestones after balance update
+                // Note: This is called within a transaction, so achievements will be checked after transaction commits
+                // Achievements are checked based on the newBalance value
+                CheckTreasuryAchievements(familyId, newBalance);
+                
                 return true;
             }
             catch (Exception ex)
@@ -449,6 +455,12 @@ namespace mokipointsCS
                 }
 
                 System.Diagnostics.Debug.WriteLine(string.Format("WithdrawFromTreasury SUCCESS: FamilyId={0}, Amount={1}, BalanceBefore={2}, BalanceAfter={3}", familyId, amount, currentBalance, newBalance));
+                
+                // Check treasury achievement milestones after balance update
+                // Note: This is called within a transaction, so achievements will be checked after transaction commits
+                // Achievements are checked based on the newBalance value
+                CheckTreasuryAchievements(familyId, newBalance);
+                
                 return true;
             }
             catch (Exception ex)
@@ -456,6 +468,52 @@ namespace mokipointsCS
                 System.Diagnostics.Debug.WriteLine(string.Format("WithdrawFromTreasury error: {0}", ex.Message));
                 System.Diagnostics.Debug.WriteLine(string.Format("Stack Trace: {0}", ex.StackTrace));
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Checks and awards treasury achievement milestones (Economist, Bankrupt)
+        /// Called after treasury balance updates
+        /// </summary>
+        private static void CheckTreasuryAchievements(int familyId, int newBalance)
+        {
+            try
+            {
+                // Get all parent users in the family
+                string parentsQuery = @"
+                    SELECT DISTINCT u.[Id]
+                    FROM [dbo].[Users] u
+                    INNER JOIN [dbo].[FamilyMembers] fm ON u.[Id] = fm.[UserId]
+                    WHERE fm.[FamilyId] = @FamilyId 
+                      AND u.[Role] = 'PARENT'
+                      AND fm.[IsActive] = 1
+                      AND u.[IsActive] = 1";
+
+                using (DataTable parents = DatabaseHelper.ExecuteQuery(parentsQuery,
+                    new SqlParameter("@FamilyId", familyId)))
+                {
+                    foreach (DataRow parent in parents.Rows)
+                    {
+                        int parentId = Convert.ToInt32(parent["Id"]);
+                        
+                        // Check for Economist achievement (treasury <= 500,000)
+                        if (newBalance <= 500000)
+                        {
+                            AchievementHelper.CheckAndAwardAchievement(parentId, "TreasuryBalance", 500000);
+                        }
+                        
+                        // Check for Bankrupt achievement (treasury == 0)
+                        if (newBalance == 0)
+                        {
+                            AchievementHelper.CheckAndAwardAchievement(parentId, "TreasuryBalance", 0);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Don't fail treasury operation if achievement check fails
+                System.Diagnostics.Debug.WriteLine("CheckTreasuryAchievements error: " + ex.Message);
             }
         }
 

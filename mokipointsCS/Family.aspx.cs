@@ -641,8 +641,10 @@ namespace mokipointsCS
                     e.Item.ItemType == System.Web.UI.WebControls.ListItemType.AlternatingItem)
                 {
                     int userId = Convert.ToInt32(Session["UserId"]);
-                    int? familyId = FamilyHelper.GetUserFamilyId(userId);
-                    if (!familyId.HasValue) return;
+                    int? familyIdNullable = FamilyHelper.GetUserFamilyId(userId);
+                    if (!familyIdNullable.HasValue) return;
+                    
+                    int familyId = familyIdNullable.Value;
 
                     bool isOwner = Convert.ToBoolean(DataBinder.Eval(e.Item.DataItem, "IsOwner"));
                     int memberId = Convert.ToInt32(DataBinder.Eval(e.Item.DataItem, "Id"));
@@ -678,14 +680,21 @@ namespace mokipointsCS
                         }
                     }
 
-                    // Show owner actions if current user is owner and this is not the current user
+                    // Show owner actions ONLY if current logged-in user is the owner AND is a PARENT (not a child)
+                    // AND the displayed member is not the current user
                     System.Web.UI.HtmlControls.HtmlGenericControl parentActions = e.Item.FindControl("parentActions") as System.Web.UI.HtmlControls.HtmlGenericControl;
                     System.Web.UI.WebControls.Button btnTransfer = e.Item.FindControl("btnTransferOwnership") as System.Web.UI.WebControls.Button;
                     System.Web.UI.WebControls.Button btnKick = e.Item.FindControl("btnKickParent") as System.Web.UI.WebControls.Button;
 
-                    if (isOwner && !isCurrentUser)
+                    // Check if current logged-in user is the owner and is a PARENT (not a child)
+                    string currentUserRole = Session["UserRole"]?.ToString() ?? "";
+                    int? ownerId = FamilyHelper.GetFamilyOwnerId(familyId);
+                    bool currentUserIsOwner = ownerId.HasValue && ownerId.Value == userId;
+                    bool isParent = currentUserRole == "PARENT";
+
+                    if (currentUserIsOwner && isParent && !isCurrentUser)
                     {
-                        // Current user is owner, show transfer and kick buttons for other parents
+                        // Current logged-in user is the owner AND is a PARENT, show transfer and kick buttons for other parents
                         if (btnTransfer != null)
                         {
                             btnTransfer.Visible = true;
@@ -699,6 +708,18 @@ namespace mokipointsCS
                             string firstName = DataBinder.Eval(e.Item.DataItem, "FirstName")?.ToString() ?? "";
                             string lastName = DataBinder.Eval(e.Item.DataItem, "LastName")?.ToString() ?? "";
                             btnKick.OnClientClick = string.Format("return confirm('Are you sure you want to remove {0} {1} from the family?');", firstName, lastName);
+                        }
+                    }
+                    else
+                    {
+                        // Hide buttons if current user is not owner, or is a child, or is viewing themselves
+                        if (btnTransfer != null)
+                        {
+                            btnTransfer.Visible = false;
+                        }
+                        if (btnKick != null)
+                        {
+                            btnKick.Visible = false;
                         }
                     }
                 }

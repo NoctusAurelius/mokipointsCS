@@ -155,6 +155,11 @@
             color: #d32f2f;
         }
         
+        .settings-icon.achievements {
+            background-color: #fff9c4;
+            color: #f57f17;
+        }
+        
         .settings-text {
             flex: 1;
         }
@@ -458,6 +463,21 @@
                     <div class="settings-arrow"></div>
                     <asp:Button ID="btnPrivacy" runat="server" OnClick="btnPrivacy_Click" style="display: none;" />
                 </div>
+
+                <!-- Achievements (Role-based) -->
+                <asp:Panel ID="pnlAchievements" runat="server" Visible="false">
+                    <div class="settings-item" onclick="document.getElementById('<%= btnAchievements.ClientID %>').click();">
+                        <div class="settings-item-content">
+                            <div class="settings-icon achievements">&#127941;</div>
+                            <div class="settings-text">
+                                <div class="settings-title">Achievements</div>
+                                <div class="settings-description">View your earned achievements and progress</div>
+                            </div>
+                        </div>
+                        <div class="settings-arrow"></div>
+                        <asp:Button ID="btnAchievements" runat="server" OnClick="btnAchievements_Click" style="display: none;" />
+                    </div>
+                </asp:Panel>
 
                 <!-- Logout -->
                 <div class="settings-item" onclick="showLogoutConfirmation();">

@@ -36,6 +36,8 @@ namespace mokipointsCS
 
                 if (!IsPostBack)
                 {
+                    // Check for newly earned achievements
+                    CheckAndShowAchievementNotification();
                     // Check and auto-fail overdue tasks
                     int userId = Convert.ToInt32(Session["UserId"]);
                     int? familyId = FamilyHelper.GetUserFamilyId(userId);
@@ -82,6 +84,9 @@ namespace mokipointsCS
                     
                     // Load profile picture
                     LoadProfilePicture(userId);
+                    
+                    // Load top achievements
+                    LoadTopAchievements(userId);
                 }
             }
             catch (System.Threading.ThreadAbortException)
@@ -98,6 +103,39 @@ namespace mokipointsCS
                 }
                 System.Diagnostics.Debug.WriteLine("Stack trace: " + ex.StackTrace);
                 Response.Redirect("Login.aspx", false);
+            }
+        }
+
+        private void CheckAndShowAchievementNotification()
+        {
+            try
+            {
+                // Check if there's a newly earned achievement in session
+                if (Session["NewAchievement"] != null)
+                {
+                    AchievementData achievement = Session["NewAchievement"] as AchievementData;
+                    if (achievement != null)
+                    {
+                        // Serialize achievement data to JSON for JavaScript
+                        System.Web.Script.Serialization.JavaScriptSerializer serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+                        string json = serializer.Serialize(new
+                        {
+                            Id = achievement.Id,
+                            Name = achievement.Name,
+                            Description = achievement.Description,
+                            Rarity = achievement.Rarity,
+                            BadgeImagePath = ResolveUrl("~/" + achievement.BadgeImagePath)
+                        });
+                        hdnAchievementNotification.Value = json;
+                        
+                        // Clear session to prevent showing again
+                        Session.Remove("NewAchievement");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("CheckAndShowAchievementNotification error: " + ex.Message);
             }
         }
 
@@ -310,6 +348,33 @@ namespace mokipointsCS
             {
                 System.Diagnostics.Debug.WriteLine("Logout error: " + ex.Message);
                 Response.Redirect("Login.aspx", false);
+            }
+        }
+
+        private void LoadTopAchievements(int userId)
+        {
+            try
+            {
+                List<AchievementData> topAchievements = AchievementHelper.GetTop3Achievements(userId);
+                
+                if (topAchievements != null && topAchievements.Count > 0)
+                {
+                    pnlTopAchievements.Visible = true;
+                    pnlNoAchievements.Visible = false;
+                    rptTopAchievements.DataSource = topAchievements;
+                    rptTopAchievements.DataBind();
+                }
+                else
+                {
+                    pnlTopAchievements.Visible = false;
+                    pnlNoAchievements.Visible = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("LoadTopAchievements error: " + ex.Message);
+                pnlTopAchievements.Visible = false;
+                pnlNoAchievements.Visible = true;
             }
         }
     }

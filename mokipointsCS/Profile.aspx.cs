@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -70,6 +71,9 @@ namespace mokipointsCS
                         profilePicture = (userInfo["ProfilePicture"] != null && userInfo["ProfilePicture"] != DBNull.Value) ? userInfo["ProfilePicture"].ToString() : null;
                     }
 
+                    // Load top 3 achievements
+                    LoadTopAchievements(userId);
+                    
                     // Set literals
                     litFullName.Text = firstName + " " + lastName;
                     litEmail.Text = email;
@@ -137,6 +141,33 @@ namespace mokipointsCS
             {
                 System.Diagnostics.Debug.WriteLine("LoadUserProfile error: " + ex.Message);
                 ShowMessage("Error loading profile information.", "error");
+            }
+        }
+
+        private void LoadTopAchievements(int userId)
+        {
+            try
+            {
+                List<AchievementData> topAchievements = AchievementHelper.GetTop3Achievements(userId);
+                
+                if (topAchievements != null && topAchievements.Count > 0)
+                {
+                    pnlTopAchievements.Visible = true;
+                    pnlNoAchievements.Visible = false;
+                    rptTopAchievements.DataSource = topAchievements;
+                    rptTopAchievements.DataBind();
+                }
+                else
+                {
+                    pnlTopAchievements.Visible = false;
+                    pnlNoAchievements.Visible = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("LoadTopAchievements error: " + ex.Message);
+                pnlTopAchievements.Visible = false;
+                pnlNoAchievements.Visible = true;
             }
         }
 

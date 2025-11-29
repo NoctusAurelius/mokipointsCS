@@ -276,6 +276,95 @@
         #fileUpload {
             display: none;
         }
+        
+        /* Achievements Display */
+        .achievements-display {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .achievement-badge-small {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #f9f9f9;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .achievement-badge-small:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        
+        .achievement-badge-small img {
+            width: 220px;
+            height: 220px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+        
+        .achievement-name-display {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .achievement-rarity-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .achievement-rarity-badge.rarity-common {
+            background: linear-gradient(135deg, #9E9E9E 0%, #757575 100%);
+            color: white;
+        }
+        
+        .achievement-rarity-badge.rarity-uncommon {
+            background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+            color: white;
+        }
+        
+        .achievement-rarity-badge.rarity-rare {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+        }
+        
+        .achievement-rarity-badge.rarity-epic {
+            background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);
+            color: white;
+        }
+        
+        .achievement-rarity-badge.rarity-legendary {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            color: white;
+        }
+        
+        .achievement-rarity-badge.rarity-mythical {
+            background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -367,6 +456,34 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Top Achievements -->
+                <div class="info-section">
+                    <h2 class="section-title">Top Achievements</h2>
+                    <asp:Panel ID="pnlTopAchievements" runat="server">
+                        <div class="achievements-display">
+                            <asp:Repeater ID="rptTopAchievements" runat="server">
+                                <ItemTemplate>
+                                    <div class="achievement-badge-small" title='<%# Eval("Name") %> - <%# Eval("Rarity") %>'>
+                                        <img src='<%# Eval("BadgeImagePath") %>' alt='<%# Eval("Name") %>' />
+                                        <div class="achievement-name-display"><%# Eval("Name") %></div>
+                                        <div class="achievement-rarity-badge rarity-<%# Eval("Rarity").ToString().ToLower() %>"><%# Eval("Rarity") %></div>
+                                    </div>
+                                </ItemTemplate>
+                            </asp:Repeater>
+                        </div>
+                        <div style="text-align: center; margin-top: 15px;">
+                            <a href="Achievements.aspx" style="color: #0066CC; text-decoration: none; font-weight: 500;">View All Achievements →</a>
+                        </div>
+                    </asp:Panel>
+                    <asp:Panel ID="pnlNoAchievements" runat="server" Visible="false">
+                        <div style="text-align: center; color: #999; padding: 20px;">
+                            No achievements earned yet. Complete tasks and earn points to unlock achievements!
+                            <br />
+                            <a href="Achievements.aspx" style="color: #0066CC; text-decoration: none; font-weight: 500; margin-top: 10px; display: inline-block;">View All Achievements →</a>
+                        </div>
+                    </asp:Panel>
                 </div>
 
                 <!-- Change Password -->

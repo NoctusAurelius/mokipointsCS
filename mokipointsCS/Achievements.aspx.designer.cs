@@ -11,7 +11,7 @@ namespace mokipointsCS
 {
 
 
-    public partial class Settings
+    public partial class Achievements
     {
 
         /// <summary>
@@ -24,40 +24,31 @@ namespace mokipointsCS
         protected global::System.Web.UI.HtmlControls.HtmlForm form1;
 
         /// <summary>
-        /// btnProfile control.
+        /// statTotal control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnProfile;
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl statTotal;
 
         /// <summary>
-        /// btnTerms control.
+        /// statEarned control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnTerms;
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl statEarned;
 
         /// <summary>
-        /// btnPrivacy control.
+        /// statProgress control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnPrivacy;
-
-        /// <summary>
-        /// btnLogout control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnLogout;
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl statProgress;
 
         /// <summary>
         /// pnlAchievements control.
@@ -69,12 +60,31 @@ namespace mokipointsCS
         protected global::System.Web.UI.WebControls.Panel pnlAchievements;
 
         /// <summary>
-        /// btnAchievements control.
+        /// rptAchievements control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnAchievements;
+        protected global::System.Web.UI.WebControls.Repeater rptAchievements;
+
+        /// <summary>
+        /// pnlNoAchievements control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Panel pnlNoAchievements;
+
+        /// <summary>
+        /// hdnAchievementsData control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hdnAchievementsData;
     }
 }
+

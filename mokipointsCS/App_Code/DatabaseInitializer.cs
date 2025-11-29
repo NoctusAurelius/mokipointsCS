@@ -1275,6 +1275,95 @@ namespace mokipointsCS
                     cmd.ExecuteNonQuery();
                 }
 
+                // Achievements table
+                string createAchievementsTable = @"
+                    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Achievements]') AND type in (N'U'))
+                    BEGIN
+                        CREATE TABLE [dbo].[Achievements] (
+                            [Id] INT IDENTITY(1,1) PRIMARY KEY,
+                            [Name] NVARCHAR(100) NOT NULL,
+                            [Description] NVARCHAR(500) NOT NULL,
+                            [Rarity] NVARCHAR(50) NOT NULL,
+                            [BadgeImagePath] NVARCHAR(255) NOT NULL,
+                            [Role] NVARCHAR(50) NOT NULL,
+                            [TriggerType] NVARCHAR(100) NOT NULL,
+                            [TriggerValue] INT NULL,
+                            [HowToAchieve] NVARCHAR(500) NULL,
+                            [DeveloperMessage] NVARCHAR(1000) NULL,
+                            [IsActive] BIT NOT NULL DEFAULT 1,
+                            [CreatedDate] DATETIME NOT NULL DEFAULT GETDATE()
+                        )
+                        CREATE INDEX IX_Achievements_Role ON [dbo].[Achievements]([Role])
+                        CREATE INDEX IX_Achievements_TriggerType ON [dbo].[Achievements]([TriggerType])
+                        CREATE INDEX IX_Achievements_IsActive ON [dbo].[Achievements]([IsActive])
+                    END
+                    ELSE
+                    BEGIN
+                        -- Migration: Add HowToAchieve column if it doesn't exist
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Achievements]') AND name = 'HowToAchieve')
+                        BEGIN
+                            ALTER TABLE [dbo].[Achievements] ADD [HowToAchieve] NVARCHAR(500) NULL;
+                        END
+                        -- Migration: Add DeveloperMessage column if it doesn't exist
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Achievements]') AND name = 'DeveloperMessage')
+                        BEGIN
+                            ALTER TABLE [dbo].[Achievements] ADD [DeveloperMessage] NVARCHAR(1000) NULL;
+                        END
+                    END";
+                using (SqlCommand cmd = new SqlCommand(createAchievementsTable, conn))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+
+                // UserAchievements table
+                string createUserAchievementsTable = @"
+                    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UserAchievements]') AND type in (N'U'))
+                    BEGIN
+                        CREATE TABLE [dbo].[UserAchievements] (
+                            [Id] INT IDENTITY(1,1) PRIMARY KEY,
+                            [UserId] INT NOT NULL,
+                            [AchievementId] INT NOT NULL,
+                            [EarnedDate] DATETIME NOT NULL DEFAULT GETDATE(),
+                            [IsDisplayed] BIT NOT NULL DEFAULT 1,
+                            FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]),
+                            FOREIGN KEY ([AchievementId]) REFERENCES [dbo].[Achievements]([Id]),
+                            UNIQUE ([UserId], [AchievementId])
+                        )
+                        CREATE INDEX IX_UserAchievements_UserId ON [dbo].[UserAchievements]([UserId])
+                        CREATE INDEX IX_UserAchievements_AchievementId ON [dbo].[UserAchievements]([AchievementId])
+                        CREATE INDEX IX_UserAchievements_EarnedDate ON [dbo].[UserAchievements]([EarnedDate])
+                    END";
+                using (SqlCommand cmd = new SqlCommand(createUserAchievementsTable, conn))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+
+                // AchievementProgress table (optional - for tracking progress)
+                string createAchievementProgressTable = @"
+                    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[AchievementProgress]') AND type in (N'U'))
+                    BEGIN
+                        CREATE TABLE [dbo].[AchievementProgress] (
+                            [Id] INT IDENTITY(1,1) PRIMARY KEY,
+                            [UserId] INT NOT NULL,
+                            [AchievementId] INT NOT NULL,
+                            [CurrentProgress] INT NOT NULL DEFAULT 0,
+                            [TargetProgress] INT NOT NULL,
+                            [LastUpdated] DATETIME NOT NULL DEFAULT GETDATE(),
+                            FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]),
+                            FOREIGN KEY ([AchievementId]) REFERENCES [dbo].[Achievements]([Id]),
+                            UNIQUE ([UserId], [AchievementId])
+                        )
+                        CREATE INDEX IX_AchievementProgress_UserId ON [dbo].[AchievementProgress]([UserId])
+                        CREATE INDEX IX_AchievementProgress_AchievementId ON [dbo].[AchievementProgress]([AchievementId])
+                    END";
+                using (SqlCommand cmd = new SqlCommand(createAchievementProgressTable, conn))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+
+                // Seed achievement data
+                SeedAchievementData(conn);
+
                 // Create indexes
                 CreateIndexesIfNotExist(conn);
                 System.Diagnostics.Debug.WriteLine("All tables created successfully.");
@@ -1335,6 +1424,88 @@ namespace mokipointsCS
                         // Index might already exist, continue
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Seeds achievement data into the Achievements table
+        /// </summary>
+        private static void SeedAchievementData(SqlConnection conn)
+        {
+            try
+            {
+                // Check if achievements already exist
+                string checkQuery = "SELECT COUNT(*) FROM [dbo].[Achievements]";
+                using (SqlCommand checkCmd = new SqlCommand(checkQuery, conn))
+                {
+                    int count = Convert.ToInt32(checkCmd.ExecuteScalar());
+                    if (count > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Achievements already seeded. Skipping seed data.");
+                        return;
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine("Seeding achievement data...");
+
+                // Child Achievements
+                string[] childAchievements = {
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Baby Steps', 'First task completed', 'Common', 'Images/Badges/Child_Achievements/Achivement_baby_setps.png', 'CHILD', 'FirstTaskCompleted', NULL, 'Complete your first task and have it reviewed by a parent.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Road to Success', 'First reward claimed', 'Common', 'Images/Badges/Child_Achievements/Achivement-Road2Success.png', 'CHILD', 'FirstRewardClaimed', NULL, 'Claim your first reward after it has been fulfilled by a parent.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('My First Penny', 'First 100 points earned', 'Common', 'Images/Badges/Child_Achievements/Achivement_1stPenny.png', 'CHILD', 'PointsEarned', 100, 'Earn a total of 100 points from completing tasks.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Piggy Bank', 'First 1,000 points earned', 'Rare', 'Images/Badges/Child_Achievements/Achivement_Piggy_Bank.png', 'CHILD', 'PointsEarned', 1000, 'Earn a total of 1,000 points from completing tasks.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Future Millionaire', 'First 5,000 points earned', 'Epic', 'Images/Badges/Child_Achievements/Achivement_FutureMillionaire.png', 'CHILD', 'PointsEarned', 5000, 'Earn a total of 5,000 points from completing tasks.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Successful Billionaire', 'First 10,000 points earned', 'Legendary', 'Images/Badges/Child_Achievements/Achivement_SuccessfulBillionaire.png', 'CHILD', 'PointsEarned', 10000, 'Earn a total of 10,000 points from completing tasks.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Achiever Award', '10 tasks completed', 'Uncommon', 'Images/Badges/Child_Achievements/Achivement_Achiever_Award.png', 'CHILD', 'TasksCompleted', 10, 'Complete and have reviewed 10 tasks successfully.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Lords Servant', '50 tasks completed', 'Rare', 'Images/Badges/Child_Achievements/Achivement_Lords_Servant.png', 'CHILD', 'TasksCompleted', 50, 'Complete and have reviewed 50 tasks successfully.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Loyal to the King', '100 tasks completed', 'Epic', 'Images/Badges/Child_Achievements/Achivement_Loyal2King.png', 'CHILD', 'TasksCompleted', 100, 'Complete and have reviewed 100 tasks successfully.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Fathers Favorite', '200 tasks completed', 'Legendary', 'Images/Badges/Child_Achievements/Achivement_FathersFave.png', 'CHILD', 'TasksCompleted', 200, 'Complete and have reviewed 200 tasks successfully.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Moms Favorite', '300 tasks completed', 'Mythical', 'Images/Badges/Child_Achievements/Achivement_momsFave.png', 'CHILD', 'TasksCompleted', 300, 'Complete and have reviewed 300 tasks successfully.', '[Developer message placeholder - to be customized per achievement]')"
+                };
+
+                // Parent Achievements
+                string[] parentAchievements = {
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Task Maker', 'First task created', 'Common', 'Images/Badges/Parents_achivements/Achievement_TaskMaker.png', 'PARENT', 'FirstTaskCreated', NULL, 'Create your first task for your family.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('The Privilege', 'First reward created', 'Common', 'Images/Badges/Parents_achivements/Achievement_ThePrivilage.png', 'PARENT', 'FirstRewardCreated', NULL, 'Create your first reward in the reward store.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Better Parent Award', 'First reward fulfilled', 'Common', 'Images/Badges/Parents_achivements/Achievement_BetterParent.png', 'PARENT', 'FirstRewardFulfilled', NULL, 'Fulfill your first reward and have it confirmed by your child.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Task Master', '25 tasks created', 'Rare', 'Images/Badges/Parents_achivements/Achievement_TaskMaster.png', 'PARENT', 'TasksCreated', 25, 'Create 25 tasks for your family.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Lower Class', '10 rewards fulfilled', 'Common', 'Images/Badges/Parents_achivements/Achievement_LowerClass.png', 'PARENT', 'RewardsFulfilled', 10, 'Fulfill 10 rewards and have them confirmed by your children.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Working Class', '25 rewards fulfilled', 'Uncommon', 'Images/Badges/Parents_achivements/Achievement_WorkingClass.png', 'PARENT', 'RewardsFulfilled', 25, 'Fulfill 25 rewards and have them confirmed by your children.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Middle Class', '50 rewards fulfilled', 'Rare', 'Images/Badges/Parents_achivements/Achievement_MiddleClass.png', 'PARENT', 'RewardsFulfilled', 50, 'Fulfill 50 rewards and have them confirmed by your children.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Upper Middle Class', '75 rewards fulfilled', 'Epic', 'Images/Badges/Parents_achivements/Achievement_UpperMiddleClass.png', 'PARENT', 'RewardsFulfilled', 75, 'Fulfill 75 rewards and have them confirmed by your children.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Upper Class', '100 rewards fulfilled', 'Legendary', 'Images/Badges/Parents_achivements/Achievement_UpperCLass.png', 'PARENT', 'RewardsFulfilled', 100, 'Fulfill 100 rewards and have them confirmed by your children.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Economist', 'Treasury is down to 500,000.00', 'Legendary', 'Images/Badges/Parents_achivements/Achievement_Economist.png', 'PARENT', 'TreasuryBalance', 500000, 'Manage your family treasury so that the balance reaches 500,000 points or below.', '[Developer message placeholder - to be customized per achievement]')",
+                    "INSERT INTO [dbo].[Achievements] ([Name], [Description], [Rarity], [BadgeImagePath], [Role], [TriggerType], [TriggerValue], [HowToAchieve], [DeveloperMessage]) VALUES ('Bankrupt', 'Treasury is down to 0', 'Mythical', 'Images/Badges/Parents_achivements/Achievement_Bankrupt.png', 'PARENT', 'TreasuryBalance', 0, 'Spend all points from your family treasury, bringing the balance to exactly 0.', '[Developer message placeholder - to be customized per achievement]')"
+                };
+
+                // Insert child achievements
+                foreach (string query in childAchievements)
+                {
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                // Insert parent achievements
+                foreach (string query in parentAchievements)
+                {
+                    using (SqlCommand cmd = new SqlCommand(query, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine("Achievement data seeded successfully. Total: 22 achievements.");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error seeding achievement data: " + ex.Message);
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Inner exception: " + ex.InnerException.Message);
+                }
+                // Don't throw - continue even if seeding fails
             }
         }
     }

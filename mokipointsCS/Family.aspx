@@ -333,6 +333,52 @@
             margin-top: 10px;
         }
         
+        /* Calendar Widget */
+        .calendar-widget {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .calendar-container {
+            background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,102,204,0.2);
+        }
+        
+        .calendar-date {
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 8px;
+        }
+        
+        .calendar-day {
+            font-size: 14px;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .calendar-time {
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            font-family: 'Courier New', monospace;
+            margin-top: 5px;
+        }
+        
+        .calendar-time-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            margin-top: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
         .treasury-info {
             margin-top: 20px;
             padding-top: 20px;
@@ -2163,6 +2209,16 @@
             isOwner: false
         };
 
+        // Helper function to read data attributes and call showContextMenu
+        function showContextMenuFromData(event, element) {
+            var userId = element.getAttribute('data-user-id');
+            var userName = element.getAttribute('data-user-name');
+            var userType = element.getAttribute('data-role');
+            var isOwner = element.getAttribute('data-is-owner') === 'true' || element.getAttribute('data-is-owner') === 'True';
+            
+            showContextMenu(event, userType, userId, userName, isOwner);
+        }
+
         function showContextMenu(event, userType, userId, userName, isOwner) {
             event.preventDefault();
             event.stopPropagation();
@@ -3318,6 +3374,16 @@
                                         style="display: none;" />
                                 </div>
                                 <div class="code-description">Children can use this code to join your family</div>
+                                
+                                <!-- Calendar Widget -->
+                                <div class="calendar-widget">
+                                    <div class="calendar-container">
+                                        <div class="calendar-day" id="calendarDay"></div>
+                                        <div class="calendar-date" id="calendarDate"></div>
+                                        <div class="calendar-time" id="calendarTime"></div>
+                                        <div class="calendar-time-label">Current Time</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3338,7 +3404,8 @@
                                              data-user-name='<%# Eval("FirstName") %> <%# Eval("LastName") %>'
                                              data-join-date='<%# GetJoinDateString(Eval("JoinDate")) %>'
                                              data-is-owner='<%# Convert.ToBoolean(Eval("IsOwner")) %>'
-                                             oncontextmenu="showContextMenu(event, 'parent', <%# Eval("Id") %>, '<%# Eval("FirstName") %> <%# Eval("LastName") %>', <%# Convert.ToBoolean(Eval("IsOwner")) %>); return false;">
+                                             data-role="parent"
+                                             oncontextmenu="showContextMenuFromData(event, this); return false;">
                                             <div class="member-avatar">
                                                 <asp:PlaceHolder ID="phParentAvatar" runat="server"></asp:PlaceHolder>
                                             </div>
@@ -3394,7 +3461,8 @@
                                              data-points='<%# Eval("TotalPoints") %>'
                                              data-completed='<%# Eval("CompletedTasks") %>'
                                              data-failed='<%# Eval("FailedTasks") %>'
-                                             oncontextmenu="showContextMenu(event, 'child', <%# Eval("Id") %>, '<%# Eval("FirstName") %> <%# Eval("LastName") %>'); return false;">
+                                             data-role="child"
+                                             oncontextmenu="showContextMenuFromData(event, this); return false;">
                                             <div class="member-avatar">
                                                 <asp:PlaceHolder ID="phChildAvatar" runat="server"></asp:PlaceHolder>
                                             </div>
@@ -3601,6 +3669,53 @@
             </asp:Panel>
         </div>
     </form>
+    
+    <script type="text/javascript">
+        // Calendar Widget - Update Time
+        function updateCalendar() {
+            var now = new Date();
+            
+            // Day names
+            var days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            var dayName = days[now.getDay()];
+            
+            // Month names
+            var months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                         'July', 'August', 'September', 'October', 'November', 'December'];
+            var monthName = months[now.getMonth()];
+            
+            // Format date
+            var day = now.getDate();
+            var year = now.getFullYear();
+            var dateString = monthName + ' ' + day + ', ' + year;
+            
+            // Format time
+            var hours = now.getHours();
+            var minutes = now.getMinutes();
+            var seconds = now.getSeconds();
+            var ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            seconds = seconds < 10 ? '0' + seconds : seconds;
+            var timeString = hours + ':' + minutes + ':' + seconds + ' ' + ampm;
+            
+            // Update DOM elements
+            var dayElement = document.getElementById('calendarDay');
+            var dateElement = document.getElementById('calendarDate');
+            var timeElement = document.getElementById('calendarTime');
+            
+            if (dayElement) dayElement.textContent = dayName;
+            if (dateElement) dateElement.textContent = dateString;
+            if (timeElement) timeElement.textContent = timeString;
+        }
+        
+        // Update calendar immediately on page load
+        updateCalendar();
+        
+        // Update calendar every second
+        setInterval(updateCalendar, 1000);
+    </script>
 </body>
 </html>
 

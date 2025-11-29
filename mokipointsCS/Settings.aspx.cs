@@ -21,6 +21,13 @@ namespace mokipointsCS
                 if (!IsPostBack)
                 {
                     System.Diagnostics.Debug.WriteLine("Settings: Loading settings page");
+                    
+                    // Show Achievements button for all users (role-based)
+                    string role = Session["UserRole"]?.ToString();
+                    if (!string.IsNullOrEmpty(role))
+                    {
+                        pnlAchievements.Visible = true;
+                    }
                 }
             }
             catch (System.Threading.ThreadAbortException)
@@ -55,6 +62,12 @@ namespace mokipointsCS
         {
             System.Diagnostics.Debug.WriteLine("Settings: Privacy button clicked");
             Response.Redirect("PrivacyPolicy.aspx?from=settings", false);
+        }
+
+        protected void btnAchievements_Click(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("Settings: Achievements button clicked");
+            Response.Redirect("Achievements.aspx", false);
         }
 
         protected void btnLogout_Click(object sender, EventArgs e)

@@ -1,12 +1,38 @@
 # MokiPoints - Family Chore & Reward Management System
 
-**Version**: 5.0.4  
+**Version**: 5.0.5  
 **Last Updated**: December 2024  
 **Status**: ✅ Active Development
 
 ---
 
-## 🆕 Latest Updates (Patch 5.0.4)
+## 🆕 Latest Updates (Patch 5.0.5)
+
+### ✅ Achievement System & UI Enhancements
+
+**Patch 5.0.5** introduces a comprehensive achievement system and additional UI improvements:
+
+#### Achievement System
+- **Complete Achievement Framework**: Full achievement system with badges, progress tracking, and automatic awarding
+- **Child Achievements**: 11 achievements for children (task completion, points milestones, reward claims)
+- **Parent Achievements**: 11 achievements for parents (task creation, reward fulfillment, treasury management)
+- **Rarity System**: 6 rarity levels (Common, Uncommon, Rare, Epic, Legendary, Mythical) with color-coded badges
+- **Achievement Gallery**: Dedicated achievements page with filters, progress bars, and detail modals
+- **Top 3 Achievements Display**: Featured achievements shown on Profile page and both dashboards
+- **Dashboard Notifications**: Animated popup notifications with sound effects when achievements are earned
+- **Family Chat Integration**: System messages automatically posted when achievements are earned
+- **Permanent Achievements**: Once earned, achievements remain earned even if progress regresses
+
+#### UI Enhancements
+- **Calendar Widget**: Real-time calendar and clock widget in Family page sidebar showing current day, date, and time
+- **Achievement Badges on Dashboards**: Top 3 achievements displayed on both Parent and Child dashboards
+- **Achievement Detail Modal**: Clickable achievement cards showing badge image, description, how to achieve, and developer messages
+
+**For detailed documentation, see**: [PATCH_5.0.5_ACHIEVEMENT_SYSTEM.md](mokipointsCS/Documentation/PATCH_5.0.5_ACHIEVEMENT_SYSTEM.md)
+
+---
+
+## 📋 Previous Updates (Patch 5.0.4)
 
 ### ✅ Validation & Security Improvements
 
@@ -109,6 +135,7 @@
   - Ban/unban children from receiving tasks
   - Remove children from family
 - **Family Chat**: Real-time messaging system (see [Family Chat Documentation](README_FAMILY_CHAT.md))
+- **Calendar Widget**: Real-time calendar and clock display in Family page sidebar showing current day, date, and time
 
 ### 📝 Task Management System
 
@@ -216,6 +243,7 @@ A comprehensive real-time messaging system with:
 - Task statistics
 - Reward statistics
 - Quick actions
+- Top 3 achievements display
 
 #### Child Dashboard:
 - Personal statistics
@@ -223,6 +251,17 @@ A comprehensive real-time messaging system with:
 - Points balance
 - Available rewards preview
 - Quick actions
+- Top 3 achievements display
+
+### 🏆 Achievement System
+
+- **Achievement Gallery**: Dedicated page showing all available achievements with progress tracking
+- **Achievement Badges**: Visual badges for each achievement with rarity-based color coding
+- **Progress Tracking**: Real-time progress bars for milestone-based achievements
+- **Achievement Notifications**: Animated popup notifications with sound effects when achievements are earned
+- **Profile Integration**: Top 3 achievements displayed on user profiles and dashboards
+- **Family Chat Integration**: System messages posted when achievements are earned
+- **Permanent Status**: Achievements remain earned permanently once unlocked
 
 ### 🔔 Notifications
 

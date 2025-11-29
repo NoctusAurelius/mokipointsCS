@@ -37,6 +37,34 @@ namespace mokipointsCS
 
                 System.Diagnostics.Debug.WriteLine(string.Format("CreateReward: FamilyId={0}, CreatedBy={1}, Name={2}, PointCost={3}", familyId, createdBy, name, pointCost));
                 
+                // Check for achievement awards (parent reward creation achievements)
+                if (rows > 0)
+                {
+                    try
+                    {
+                        // Get count of rewards created by this user
+                        string createdRewardsQuery = @"
+                            SELECT COUNT(*)
+                            FROM [dbo].[Rewards]
+                            WHERE [CreatedBy] = @CreatedBy AND [IsDeleted] = 0";
+                        
+                        object createdCountResult = DatabaseHelper.ExecuteScalar(createdRewardsQuery,
+                            new SqlParameter("@CreatedBy", createdBy));
+                        int createdRewardsCount = Convert.ToInt32(createdCountResult);
+
+                        // Check for first reward created
+                        if (createdRewardsCount == 1)
+                        {
+                            AchievementHelper.CheckAndAwardAchievement(createdBy, "FirstRewardCreated");
+                        }
+                    }
+                    catch (Exception achievementEx)
+                    {
+                        // Don't fail reward creation if achievement check fails
+                        System.Diagnostics.Debug.WriteLine("CreateReward: Failed to check achievements: " + achievementEx.Message);
+                    }
+                }
+                
                 // Post system message to family chat
                 if (rows > 0)
                 {
@@ -778,6 +806,10 @@ namespace mokipointsCS
                     new SqlParameter("@FulfilledBy", fulfilledBy));
 
                 System.Diagnostics.Debug.WriteLine(string.Format("FulfillOrder: OrderId={0}, FulfilledBy={1}", orderId, fulfilledBy));
+                
+                // Note: Parent reward fulfillment achievements are checked when child confirms fulfillment
+                // (in ConfirmFulfillment method), not here
+                
                 return rows > 0;
             }
             catch (Exception ex)
@@ -876,6 +908,61 @@ namespace mokipointsCS
 
                             transaction.Commit();
                             System.Diagnostics.Debug.WriteLine(string.Format("ConfirmFulfillment: OrderId={0}, ChildId={1}", orderId, childId));
+                            
+                            // Check for achievement awards after successful confirmation
+                            try
+                            {
+                                // Get order details again to check fulfilledBy
+                                DataRow orderDetails = GetOrderDetails(orderId);
+                                if (orderDetails != null && orderDetails["FulfilledBy"] != DBNull.Value)
+                                {
+                                    int fulfilledBy = Convert.ToInt32(orderDetails["FulfilledBy"]);
+                                    
+                                    // Check for child achievement: FirstRewardClaimed
+                                    string childRewardsQuery = @"
+                                        SELECT COUNT(*)
+                                        FROM [dbo].[RewardOrders]
+                                        WHERE [ChildId] = @ChildId 
+                                          AND [Status] = 'TransactionComplete'
+                                          AND [ChildConfirmedDate] IS NOT NULL";
+                                    
+                                    object childRewardsResult = DatabaseHelper.ExecuteScalar(childRewardsQuery,
+                                        new SqlParameter("@ChildId", childId));
+                                    int childRewardsCount = Convert.ToInt32(childRewardsResult);
+                                    
+                                    if (childRewardsCount == 1)
+                                    {
+                                        AchievementHelper.CheckAndAwardAchievement(childId, "FirstRewardClaimed");
+                                    }
+                                    
+                                    // Check for parent achievements: FirstRewardFulfilled and RewardsFulfilled milestones
+                                    string parentRewardsQuery = @"
+                                        SELECT COUNT(*)
+                                        FROM [dbo].[RewardOrders]
+                                        WHERE [FulfilledBy] = @FulfilledBy 
+                                          AND [Status] = 'TransactionComplete'
+                                          AND [ChildConfirmedDate] IS NOT NULL";
+                                    
+                                    object parentRewardsResult = DatabaseHelper.ExecuteScalar(parentRewardsQuery,
+                                        new SqlParameter("@FulfilledBy", fulfilledBy));
+                                    int parentRewardsCount = Convert.ToInt32(parentRewardsResult);
+                                    
+                                    // Check for first reward fulfilled
+                                    if (parentRewardsCount == 1)
+                                    {
+                                        AchievementHelper.CheckAndAwardAchievement(fulfilledBy, "FirstRewardFulfilled");
+                                    }
+                                    
+                                    // Check for milestone achievements (10, 25, 50, 75, 100)
+                                    AchievementHelper.CheckAndAwardAchievement(fulfilledBy, "RewardsFulfilled", parentRewardsCount);
+                                }
+                            }
+                            catch (Exception achievementEx)
+                            {
+                                // Don't fail confirmation if achievement check fails
+                                System.Diagnostics.Debug.WriteLine("ConfirmFulfillment: Failed to check achievements: " + achievementEx.Message);
+                            }
+                            
                             return true;
                         }
                         catch

@@ -222,6 +222,10 @@ namespace mokipointsCS
                     string testRole = Session["UserRole"] != null ? Session["UserRole"].ToString() : null;
                     System.Diagnostics.Debug.WriteLine("Session verification test - UserId: " + (testUserId != null ? testUserId : "NULL") + ", Role: " + (testRole != null ? testRole : "NULL"));
 
+                    // Ensure session is saved before redirect
+                    Session["UserId"] = userId; // Re-set to ensure it's saved
+                    Session["UserRole"] = role; // Re-set to ensure it's saved
+                    
                     // Redirect based on role
                     System.Diagnostics.Debug.WriteLine("Redirecting based on role: " + role);
                     if (role == "CHILD")
@@ -229,11 +233,13 @@ namespace mokipointsCS
                         // Children must join a family first
                         System.Diagnostics.Debug.WriteLine("Redirecting CHILD to JoinFamily.aspx");
                         Response.Redirect("JoinFamily.aspx", false);
+                        Context.ApplicationInstance.CompleteRequest();
                     }
                     else
                     {
                         System.Diagnostics.Debug.WriteLine("Redirecting PARENT to Dashboard.aspx");
                         Response.Redirect("Dashboard.aspx", false);
+                        Context.ApplicationInstance.CompleteRequest();
                     }
                     return; // Exit method after redirect
                 }

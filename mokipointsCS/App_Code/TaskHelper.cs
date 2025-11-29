@@ -539,6 +539,34 @@ namespace mokipointsCS
                 // Log audit
                 LogTaskAction(taskIdInt, "Created", createdBy, null, new { Title = title, Category = category, PointsReward = pointsReward });
 
+                // Check for achievement awards (parent task creation achievements)
+                try
+                {
+                    // Get count of tasks created by this user
+                    string createdTasksQuery = @"
+                        SELECT COUNT(*)
+                        FROM [dbo].[Tasks]
+                        WHERE [CreatedBy] = @CreatedBy AND [IsActive] = 1";
+                    
+                    object createdCountResult = DatabaseHelper.ExecuteScalar(createdTasksQuery,
+                        new SqlParameter("@CreatedBy", createdBy));
+                    int createdTasksCount = Convert.ToInt32(createdCountResult);
+
+                    // Check for first task created
+                    if (createdTasksCount == 1)
+                    {
+                        AchievementHelper.CheckAndAwardAchievement(createdBy, "FirstTaskCreated");
+                    }
+
+                    // Check for milestone achievement (25 tasks)
+                    AchievementHelper.CheckAndAwardAchievement(createdBy, "TasksCreated", createdTasksCount);
+                }
+                catch (Exception achievementEx)
+                {
+                    // Don't fail task creation if achievement check fails
+                    System.Diagnostics.Debug.WriteLine("CreateTask: Failed to check achievements: " + achievementEx.Message);
+                }
+
                 System.Diagnostics.Debug.WriteLine(string.Format("Task created: {0}, ID: {1}, Points: {2}", title, taskIdInt, pointsReward));
                 return taskIdInt;
             }
@@ -1372,6 +1400,70 @@ namespace mokipointsCS
                         {
                             // Don't fail the review if chat message fails
                             System.Diagnostics.Debug.WriteLine("ReviewTask: Failed to post chat message: " + chatEx.Message);
+                        }
+
+                        // Check for achievement awards (only if task was successfully completed, not failed)
+                        if (!isFailed && rating > 0 && pointsAwarded > 0)
+                        {
+                            try
+                            {
+                                // Get count of completed tasks for this user
+                                string completedTasksQuery = @"
+                                    SELECT COUNT(DISTINCT ta.[Id])
+                                    FROM [dbo].[TaskAssignments] ta
+                                    INNER JOIN [dbo].[TaskReviews] tr ON ta.[Id] = tr.[TaskAssignmentId]
+                                    WHERE ta.[UserId] = @UserId 
+                                      AND ta.[Status] = 'Reviewed'
+                                      AND tr.[Rating] > 0
+                                      AND ta.[IsDeleted] = 0";
+                                
+                                object completedCountResult = DatabaseHelper.ExecuteScalar(completedTasksQuery,
+                                    new SqlParameter("@UserId", userId));
+                                int completedTasksCount = Convert.ToInt32(completedCountResult);
+
+                                // Check for first task completed
+                                if (completedTasksCount == 1)
+                                {
+                                    AchievementHelper.CheckAndAwardAchievement(userId, "FirstTaskCompleted");
+                                }
+
+                                // Check for milestone achievements (10, 50, 100, 200, 300)
+                                AchievementHelper.CheckAndAwardAchievement(userId, "TasksCompleted", completedTasksCount);
+
+                                // Check for points milestone achievements (100, 1000, 5000, 10000)
+                                // Get total points earned (from PointTransactions where points > 0)
+                                string totalPointsQuery = @"
+                                    SELECT ISNULL(SUM([Points]), 0)
+                                    FROM [dbo].[PointTransactions]
+                                    WHERE [UserId] = @UserId AND [Points] > 0";
+                                
+                                object totalPointsResult = DatabaseHelper.ExecuteScalar(totalPointsQuery,
+                                    new SqlParameter("@UserId", userId));
+                                int totalPointsEarned = Convert.ToInt32(totalPointsResult);
+
+                                // Check milestone achievements
+                                if (totalPointsEarned >= 100 && totalPointsEarned < 1000)
+                                {
+                                    AchievementHelper.CheckAndAwardAchievement(userId, "PointsEarned", 100);
+                                }
+                                else if (totalPointsEarned >= 1000 && totalPointsEarned < 5000)
+                                {
+                                    AchievementHelper.CheckAndAwardAchievement(userId, "PointsEarned", 1000);
+                                }
+                                else if (totalPointsEarned >= 5000 && totalPointsEarned < 10000)
+                                {
+                                    AchievementHelper.CheckAndAwardAchievement(userId, "PointsEarned", 5000);
+                                }
+                                else if (totalPointsEarned >= 10000)
+                                {
+                                    AchievementHelper.CheckAndAwardAchievement(userId, "PointsEarned", 10000);
+                                }
+                            }
+                            catch (Exception achievementEx)
+                            {
+                                // Don't fail the review if achievement check fails
+                                System.Diagnostics.Debug.WriteLine("ReviewTask: Failed to check achievements: " + achievementEx.Message);
+                            }
                         }
 
                         System.Diagnostics.Debug.WriteLine(string.Format("ReviewTask: Successfully reviewed assignment {0}", taskAssignmentId));

@@ -90,8 +90,9 @@ namespace mokipointsCS
                 // Validate session
                 if (Session["UserId"] == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("JoinFamily btnJoin: Session UserId is NULL");
-                    ShowError("Your session has expired. Please log in again.");
+                    System.Diagnostics.Debug.WriteLine("JoinFamily btnJoin: Session UserId is NULL - redirecting to Login");
+                    Response.Redirect("Login.aspx?error=session", false);
+                    Context.ApplicationInstance.CompleteRequest();
                     return;
                 }
 
@@ -157,6 +158,14 @@ namespace mokipointsCS
                     }
 
                     System.Diagnostics.Debug.WriteLine(string.Format("JoinFamily btnJoin: SUCCESS - User {0} joined family {1}, redirecting to ChildDashboard", userId, newFamilyId.Value));
+                    
+                    // Ensure session is still valid before redirect
+                    if (Session["UserId"] == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("JoinFamily btnJoin: WARNING - Session lost, re-setting session variables");
+                        Session["UserId"] = userId;
+                        Session["UserRole"] = "CHILD";
+                    }
                     
                     // Success - redirect to dashboard
                     // Use endResponse: false to prevent ThreadAbortException issues

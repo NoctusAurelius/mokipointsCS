@@ -78,6 +78,18 @@ namespace mokipointsCS
                     litLastName.Text = lastName;
                     litMiddleName.Text = string.IsNullOrEmpty(middleName) ? "N/A" : middleName;
                     litBirthday.Text = birthday.HasValue ? birthday.Value.ToString("MMMM dd, yyyy") : "Not set";
+                    
+                    // Calculate and display age
+                    if (birthday.HasValue)
+                    {
+                        int age = CalculateAge(birthday.Value);
+                        litAge.Text = age.ToString() + " years old";
+                    }
+                    else
+                    {
+                        litAge.Text = "Not set";
+                    }
+                    
                     litCreatedDate.Text = createdDate.ToString("MMMM dd, yyyy");
 
                     // Load profile picture
@@ -518,6 +530,14 @@ namespace mokipointsCS
         {
             System.Diagnostics.Debug.WriteLine("Profile: Change Password button clicked");
             Response.Redirect("VerifyCurrentPassword.aspx", false);
+        }
+
+        private int CalculateAge(DateTime birthday)
+        {
+            DateTime today = DateTime.Today;
+            int age = today.Year - birthday.Year;
+            if (birthday.Date > today.AddYears(-age)) age--;
+            return age;
         }
 
         private void ShowMessage(string message, string type)

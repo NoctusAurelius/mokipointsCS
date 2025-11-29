@@ -513,7 +513,7 @@
                                             "Points Earned: +" + Eval("PointsAwarded") %>
                                     </div>
                                     <%# Convert.ToBoolean(Eval("IsAutoFailed")) ? 
-                                        "<div style=\"color: #856404; font-size: 12px; margin-top: 5px;\">⚠️ Auto-failed (missed deadline)</div>" : "" %>
+                                        "<div style=\"color: #856404; font-size: 12px; margin-top: 5px;\">&#9888; Auto-failed (missed deadline)</div>" : "" %>
                                     <div class="review-date">
                                         Reviewed on <%# Convert.ToDateTime(Eval("ReviewDate")).ToString("MMM dd, yyyy HH:mm") %>
                                     </div>

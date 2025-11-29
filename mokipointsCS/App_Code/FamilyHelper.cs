@@ -215,20 +215,54 @@ namespace mokipointsCS
         }
 
         /// <summary>
-        /// Adds a user to a family
+        /// Adds a user to a family (or reactivates if previously removed)
         /// </summary>
         private static bool AddFamilyMember(int familyId, int userId, string role)
         {
             try
             {
-                string query = @"
-                    INSERT INTO [dbo].[FamilyMembers] (FamilyId, UserId, Role, IsActive)
-                    VALUES (@FamilyId, @UserId, @Role, 1)";
-
-                int rowsAffected = DatabaseHelper.ExecuteNonQuery(query,
+                // Check if record already exists (even if inactive)
+                string checkQuery = @"
+                    SELECT COUNT(*) FROM [dbo].[FamilyMembers]
+                    WHERE FamilyId = @FamilyId AND UserId = @UserId";
+                
+                object existingCount = DatabaseHelper.ExecuteScalar(checkQuery,
                     new SqlParameter("@FamilyId", familyId),
-                    new SqlParameter("@UserId", userId),
-                    new SqlParameter("@Role", role));
+                    new SqlParameter("@UserId", userId));
+                
+                bool recordExists = Convert.ToInt32(existingCount) > 0;
+                
+                int rowsAffected = 0;
+                
+                if (recordExists)
+                {
+                    // Record exists (likely inactive) - UPDATE to reactivate
+                    string updateQuery = @"
+                        UPDATE [dbo].[FamilyMembers]
+                        SET Role = @Role, IsActive = 1
+                        WHERE FamilyId = @FamilyId AND UserId = @UserId";
+                    
+                    rowsAffected = DatabaseHelper.ExecuteNonQuery(updateQuery,
+                        new SqlParameter("@FamilyId", familyId),
+                        new SqlParameter("@UserId", userId),
+                        new SqlParameter("@Role", role));
+                    
+                    System.Diagnostics.Debug.WriteLine(string.Format("AddFamilyMember: Reactivated existing membership for user {0} in family {1} as {2}", userId, familyId, role));
+                }
+                else
+                {
+                    // Record doesn't exist - INSERT new
+                    string insertQuery = @"
+                        INSERT INTO [dbo].[FamilyMembers] (FamilyId, UserId, Role, IsActive)
+                        VALUES (@FamilyId, @UserId, @Role, 1)";
+                    
+                    rowsAffected = DatabaseHelper.ExecuteNonQuery(insertQuery,
+                        new SqlParameter("@FamilyId", familyId),
+                        new SqlParameter("@UserId", userId),
+                        new SqlParameter("@Role", role));
+                    
+                    System.Diagnostics.Debug.WriteLine(string.Format("AddFamilyMember: Created new membership for user {0} in family {1} as {2}", userId, familyId, role));
+                }
 
                 if (rowsAffected > 0)
                 {
@@ -236,6 +270,36 @@ namespace mokipointsCS
                     if (role == "CHILD")
                     {
                         ResetUserPoints(userId);
+                    }
+
+                    // Post welcome message to family chat (only for new joins, not reactivations)
+                    if (!recordExists)
+                    {
+                        try
+                        {
+                            var userInfo = AuthenticationHelper.GetUserById(userId);
+                            if (userInfo != null)
+                            {
+                                string firstName = (userInfo["FirstName"] != null && userInfo["FirstName"] != DBNull.Value) 
+                                    ? userInfo["FirstName"].ToString() : "User";
+                                string lastName = (userInfo["LastName"] != null && userInfo["LastName"] != DBNull.Value) 
+                                    ? userInfo["LastName"].ToString() : "";
+                                string fullName = string.IsNullOrEmpty(lastName) ? firstName : firstName + " " + lastName;
+                                
+                                string welcomeMessage = string.Format("Welcome {0} to the family! {1} has joined as a {2}.", 
+                                    firstName, fullName, role == "CHILD" ? "child" : "parent");
+                                
+                                ChatHelper.PostSystemMessage(familyId, "MemberJoined", welcomeMessage, 
+                                    string.Format("{{\"UserId\":{0},\"Role\":\"{1}\"}}", userId, role));
+                                
+                                System.Diagnostics.Debug.WriteLine(string.Format("AddFamilyMember: Posted welcome message for user {0} joining family {1}", userId, familyId));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // Don't fail the join if welcome message fails
+                            System.Diagnostics.Debug.WriteLine(string.Format("AddFamilyMember: Failed to post welcome message: {0}", ex.Message));
+                        }
                     }
 
                     System.Diagnostics.Debug.WriteLine(string.Format("User {0} added to family {1} as {2}", userId, familyId, role));
@@ -247,6 +311,10 @@ namespace mokipointsCS
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("AddFamilyMember error: " + ex.Message);
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine("AddFamilyMember inner error: " + ex.InnerException.Message);
+                }
                 return false;
             }
         }

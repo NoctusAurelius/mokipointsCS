@@ -237,8 +237,15 @@ namespace mokipointsCS
                     }
                     return; // Exit method after redirect
                 }
+                else if (userId == -2)
+                {
+                    // Duplicate name and birthday combination
+                    System.Diagnostics.Debug.WriteLine("User account creation failed - duplicate name and birthday");
+                    ShowError("An account with this name and birthday already exists. Please use your existing account or contact support if you believe this is an error.");
+                }
                 else
                 {
+                    // userId == -1 (duplicate email) or other error
                     System.Diagnostics.Debug.WriteLine("User account creation failed - userId is 0 or negative");
                     ShowError("Registration failed. This email may already be registered. Please try again.");
                 }

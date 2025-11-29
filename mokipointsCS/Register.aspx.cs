@@ -45,7 +45,11 @@ namespace mokipointsCS
                 if (!ValidateForm())
                 {
                     System.Diagnostics.Debug.WriteLine("Form validation FAILED");
-                    ShowError("Please fill in all required fields correctly.");
+                    // Only show generic error if no specific error message was already set
+                    if (lblError == null || string.IsNullOrEmpty(lblError.Text) || !lblError.Visible)
+                    {
+                        ShowError("Please fill in all required fields correctly.");
+                    }
                     return;
                 }
                 System.Diagnostics.Debug.WriteLine("Form validation PASSED");
@@ -83,6 +87,28 @@ namespace mokipointsCS
                 {
                     ShowError("This email is already registered. Please login or use a different email.");
                     return;
+                }
+
+                // Check if FirstName + LastName + Birthday combination already exists
+                // This prevents creating multiple accounts with the same identity using different emails
+                if (birthday.HasValue)
+                {
+                    string duplicateCheckQuery = @"
+                        SELECT COUNT(*) FROM [dbo].[Users] 
+                        WHERE LOWER(LTRIM(RTRIM(FirstName))) = LOWER(LTRIM(RTRIM(@FirstName)))
+                        AND LOWER(LTRIM(RTRIM(LastName))) = LOWER(LTRIM(RTRIM(@LastName)))
+                        AND CAST(Birthday AS DATE) = CAST(@Birthday AS DATE)";
+                    
+                    object duplicateCount = DatabaseHelper.ExecuteScalar(duplicateCheckQuery,
+                        new System.Data.SqlClient.SqlParameter("@FirstName", firstName),
+                        new System.Data.SqlClient.SqlParameter("@LastName", lastName),
+                        new System.Data.SqlClient.SqlParameter("@Birthday", birthday.Value.Date));
+                    
+                    if (Convert.ToInt32(duplicateCount) > 0)
+                    {
+                        ShowError("An account with this name and birthday already exists. Please use your existing account or contact support if you believe this is an error.");
+                        return;
+                    }
                 }
 
                 // Store registration data in session
@@ -184,6 +210,18 @@ namespace mokipointsCS
                     System.Diagnostics.Debug.WriteLine("Validation failed: Birthday is in the future");
                     ShowError("Birthday cannot be in the future.");
                     return false;
+                }
+
+                // Validate age for child accounts (must be 8-19 years old)
+                if (hidRole != null && !string.IsNullOrEmpty(hidRole.Value) && hidRole.Value == "CHILD")
+                {
+                    int age = CalculateAge(birthday);
+                    if (age < 8 || age > 19)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Validation failed: Child age is " + age + " (must be 8-19)");
+                        ShowError("Child accounts must be between 8 and 19 years old. Your age is " + age + " years.");
+                        return false;
+                    }
                 }
 
                 if (txtEmail == null || string.IsNullOrEmpty(txtEmail.Text.Trim()))
@@ -320,6 +358,14 @@ namespace mokipointsCS
             Session.Remove("RegBirthday");
             Session.Remove("OTPEmail");
             Session.Remove("OTPPurpose");
+        }
+
+        private int CalculateAge(DateTime birthday)
+        {
+            DateTime today = DateTime.Today;
+            int age = today.Year - birthday.Year;
+            if (birthday.Date > today.AddYears(-age)) age--;
+            return age;
         }
 
         private void ShowError(string message)

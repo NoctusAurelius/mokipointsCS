@@ -4,6 +4,7 @@
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
+    <meta charset="utf-8" />
     <title>Assign Task - MOKI POINTS</title>
     <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
@@ -285,6 +286,38 @@
             background-color: #555;
         }
         
+        .children-checkbox-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .children-checkbox-list li {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        
+        .children-checkbox-list li:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .children-checkbox-list input[type="checkbox"] {
+            margin-right: 10px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .children-checkbox-list label {
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        
         .message {
             padding: 15px;
             border-radius: 5px;
@@ -331,7 +364,7 @@
         }
         
         .validation-error-message::before {
-            content: "⚠️";
+            content: "\26A0";
             font-size: 18px;
         }
         
@@ -418,12 +451,23 @@
             <!-- Assignment Form -->
             <div class="form-container">
                 <div class="form-group">
-                    <label>Select Child <span class="required">*</span></label>
-                    <asp:DropDownList ID="ddlChild" runat="server" CssClass="form-control">
-                        <asp:ListItem Value="">-- Select a child --</asp:ListItem>
-                    </asp:DropDownList>
-                    <asp:RequiredFieldValidator ID="rfvChild" runat="server" ControlToValidate="ddlChild" 
-                        ErrorMessage="Please select a child" CssClass="error-message" Display="Dynamic" ValidationGroup="AssignTask" />
+                    <label>Select Children <span class="required">*</span></label>
+                    <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background: white;">
+                        <asp:CheckBoxList ID="cblChildren" runat="server" CssClass="children-checkbox-list">
+                        </asp:CheckBoxList>
+                    </div>
+                    <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">
+                        Select one or more children to assign this task to
+                    </small>
+                    <asp:CustomValidator ID="cvChildren" runat="server" 
+                        OnServerValidate="ValidateChildrenSelection" 
+                        ErrorMessage="Please select at least one child" 
+                        CssClass="error-message" 
+                        Display="Dynamic" 
+                        ValidationGroup="AssignTask" />
+                    <div id="selectedChildrenCount" style="margin-top: 8px; font-size: 13px; color: #0066CC; font-weight: 500;">
+                        <span id="selectedCount">0</span> child(ren) selected
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -479,7 +523,15 @@
             }
             
             var now = new Date();
+            var today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Today at midnight
+            var deadlineDateOnly = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate());
             var minDeadline = new Date(now.getTime() + (10 * 60 * 1000)); // 10 minutes from now
+            
+            // Check if deadline is on current date (not allowed - Issue #8)
+            if (deadlineDateOnly.getTime() === today.getTime()) {
+                showDeadlineError('Deadline cannot be set on today\'s date. Please select a future date (tomorrow or later).', dateInput, timeInput, dateError, timeError, validationError);
+                return false;
+            }
             
             if (deadlineDate <= now) {
                 showDeadlineError('Deadline must be in the future. Please select a date/time that has not passed.', dateInput, timeInput, dateError, timeError, validationError);
@@ -489,6 +541,14 @@
             if (deadlineDate < minDeadline) {
                 var minTimeStr = minDeadline.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
                 showDeadlineError('Deadline must be at least 10 minutes in the future. The earliest deadline is ' + minTimeStr + '.', dateInput, timeInput, dateError, timeError, validationError);
+                return false;
+            }
+            
+            // Check if deadline is more than 30 days in the future
+            var maxDeadline = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 days from now
+            if (deadlineDate > maxDeadline) {
+                var maxDateStr = maxDeadline.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                showDeadlineError('Deadline cannot be more than 30 days in the future. The latest deadline is ' + maxDateStr + '.', dateInput, timeInput, dateError, timeError, validationError);
                 return false;
             }
             
@@ -511,32 +571,44 @@
             }
         }
         
-        // Set minimum date on page load
+        // Update selected children count
+        function updateSelectedCount() {
+            var checkboxes = document.querySelectorAll('#<%= cblChildren.ClientID %> input[type=checkbox]');
+            var count = 0;
+            checkboxes.forEach(function(cb) {
+                if (cb.checked) count++;
+            });
+            var countDisplay = document.getElementById('selectedChildrenCount');
+            if (countDisplay) {
+                var countSpan = document.getElementById('selectedCount');
+                if (countSpan) {
+                    countSpan.textContent = count;
+                }
+                countDisplay.style.display = count > 0 ? 'block' : 'none';
+            }
+        }
+        
+        // Set minimum and maximum date on page load
         window.onload = function() {
+            // Set up checkbox change listeners
+            var checkboxes = document.querySelectorAll('#<%= cblChildren.ClientID %> input[type=checkbox]');
+            checkboxes.forEach(function(cb) {
+                cb.addEventListener('change', updateSelectedCount);
+            });
+            updateSelectedCount();
+            
             var dateInput = document.getElementById('<%= txtDeadlineDate.ClientID %>');
             if (dateInput) {
                 var today = new Date();
-                var minDate = today.toISOString().split('T')[0];
+                var tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1); // Minimum is tomorrow (not today) - Issue #8
+                var minDate = tomorrow.toISOString().split('T')[0];
                 dateInput.setAttribute('min', minDate);
                 
-                // If today is selected, set minimum time to 10 minutes from now
-                dateInput.addEventListener('change', function() {
-                    var selectedDate = new Date(this.value);
-                    var today = new Date();
-                    if (selectedDate.toDateString() === today.toDateString()) {
-                        var timeInput = document.getElementById('<%= txtDeadlineTime.ClientID %>');
-                        if (timeInput) {
-                            var minTime = new Date(today.getTime() + (10 * 60 * 1000));
-                            var minTimeStr = minTime.toTimeString().substring(0, 5); // HH:mm format
-                            timeInput.setAttribute('min', minTimeStr);
-                        }
-                    } else {
-                        var timeInput = document.getElementById('<%= txtDeadlineTime.ClientID %>');
-                        if (timeInput) {
-                            timeInput.removeAttribute('min');
-                        }
-                    }
-                });
+                // Set maximum date to 30 days from today
+                var maxDate = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+                var maxDateStr = maxDate.toISOString().split('T')[0];
+                dateInput.setAttribute('max', maxDateStr);
             }
         };
     </script>

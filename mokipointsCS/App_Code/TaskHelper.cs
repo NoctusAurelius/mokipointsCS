@@ -852,13 +852,15 @@ namespace mokipointsCS
             try
             {
                 // First, check if task is overdue and auto-fail if needed
+                // Also get EstimatedMinutes for timer duration
                 string checkQuery = @"
-                    SELECT ta.Deadline, ta.Status, ta.TaskId, t.PointsReward, t.FamilyId, f.OwnerId AS FamilyOwnerId
+                    SELECT ta.Deadline, ta.Status, ta.TaskId, t.PointsReward, t.FamilyId, t.EstimatedMinutes, f.OwnerId AS FamilyOwnerId
                     FROM [dbo].[TaskAssignments] ta
                     INNER JOIN [dbo].[Tasks] t ON ta.TaskId = t.Id
                     INNER JOIN [dbo].[Families] f ON t.FamilyId = f.Id
                     WHERE ta.Id = @TaskAssignmentId AND ta.UserId = @UserId AND ta.IsDeleted = 0";
                 
+                int? timerDuration = null;
                 using (DataTable dt = DatabaseHelper.ExecuteQuery(checkQuery,
                     new SqlParameter("@TaskAssignmentId", taskAssignmentId),
                     new SqlParameter("@UserId", userId)))
@@ -874,6 +876,18 @@ namespace mokipointsCS
                     {
                         System.Diagnostics.Debug.WriteLine(string.Format("AcceptTask: Assignment {0} is not in 'Assigned' status. Current: {1}", taskAssignmentId, status));
                         return false;
+                    }
+                    
+                    // Get EstimatedMinutes for timer duration (Issue #8)
+                    if (dt.Rows[0]["EstimatedMinutes"] != DBNull.Value)
+                    {
+                        int estimatedMins = Convert.ToInt32(dt.Rows[0]["EstimatedMinutes"]);
+                        // Validate timer range (10 min - 24 hours)
+                        if (estimatedMins >= 10 && estimatedMins <= 1440)
+                        {
+                            timerDuration = estimatedMins;
+                            System.Diagnostics.Debug.WriteLine(string.Format("AcceptTask: Timer duration set to {0} minutes for assignment {1}", estimatedMins, taskAssignmentId));
+                        }
                     }
                     
                     // Check if task is overdue
@@ -899,15 +913,19 @@ namespace mokipointsCS
                     }
                 }
                 
-                // Task is not overdue - proceed with acceptance
+                // Task is not overdue - proceed with acceptance and start timer if EstimatedMinutes is set
                 string query = @"
                     UPDATE [dbo].[TaskAssignments]
-                    SET Status = 'Ongoing', AcceptedDate = GETDATE()
+                    SET Status = 'Ongoing', 
+                        AcceptedDate = GETDATE(),
+                        TimerStart = CASE WHEN @TimerDuration IS NOT NULL THEN GETDATE() ELSE NULL END,
+                        TimerDuration = @TimerDuration
                     WHERE Id = @TaskAssignmentId AND UserId = @UserId AND Status = 'Assigned'";
 
                 int rowsAffected = DatabaseHelper.ExecuteNonQuery(query,
                     new SqlParameter("@TaskAssignmentId", taskAssignmentId),
-                    new SqlParameter("@UserId", userId));
+                    new SqlParameter("@UserId", userId),
+                    new SqlParameter("@TimerDuration", timerDuration.HasValue ? (object)timerDuration.Value : DBNull.Value));
 
                 if (rowsAffected > 0)
                 {
@@ -1537,6 +1555,7 @@ namespace mokipointsCS
             {
                 string query = @"
                     SELECT ta.Id AS AssignmentId, ta.TaskId, ta.Deadline, ta.Status, ta.AssignedDate, ta.AcceptedDate, ta.CompletedDate,
+                           ta.TimerStart, ta.TimerDuration,
                            t.Title, t.Description, t.Category, t.PointsReward, t.Priority, t.Difficulty, t.EstimatedMinutes,
                            u.FirstName + ' ' + u.LastName AS AssignedByName
                     FROM [dbo].[TaskAssignments] ta
@@ -1813,7 +1832,40 @@ namespace mokipointsCS
                     return;
                 }
 
-                // Find all overdue tasks in "Assigned" or "Ongoing" status
+                DateTime now = DateTime.Now;
+                
+                // Issue #8: Check for timer expiration (in addition to deadline)
+                string timerQuery = @"
+                    SELECT ta.Id AS AssignmentId, ta.TaskId, ta.UserId, ta.TimerStart, ta.TimerDuration,
+                           t.PointsReward, t.FamilyId
+                    FROM [dbo].[TaskAssignments] ta
+                    INNER JOIN [dbo].[Tasks] t ON ta.TaskId = t.Id
+                    WHERE t.FamilyId = @FamilyId
+                      AND ta.Status = 'Ongoing'
+                      AND ta.TimerStart IS NOT NULL
+                      AND ta.TimerDuration IS NOT NULL
+                      AND ta.IsDeleted = 0
+                      AND DATEADD(MINUTE, ta.TimerDuration, ta.TimerStart) < @Now
+                      AND NOT EXISTS (SELECT 1 FROM [dbo].[TaskReviews] tr WHERE tr.TaskAssignmentId = ta.Id)";
+
+                using (DataTable timerTasks = DatabaseHelper.ExecuteQuery(timerQuery,
+                    new SqlParameter("@FamilyId", familyId),
+                    new SqlParameter("@Now", now)))
+                {
+                    foreach (DataRow row in timerTasks.Rows)
+                    {
+                        int assignmentId = Convert.ToInt32(row["AssignmentId"]);
+                        
+                        System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks: Timer expired for assignment {0}. Auto-failing.", assignmentId));
+                        
+                        if (ReviewTask(assignmentId, 0, familyOwnerId.Value, true, true)) // isAutoFailed = true
+                        {
+                            System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks: Successfully auto-failed timer-expired assignment {0}", assignmentId));
+                        }
+                    }
+                }
+
+                // Find all overdue tasks in "Assigned" or "Ongoing" status (deadline check)
                 string query = @"
                     SELECT ta.Id, ta.Deadline, ta.TaskId, ta.UserId, ta.Status, t.PointsReward
                     FROM [dbo].[TaskAssignments] ta
@@ -1822,9 +1874,12 @@ namespace mokipointsCS
                       AND ta.Status IN ('Assigned', 'Ongoing')
                       AND ta.IsDeleted = 0
                       AND ta.Deadline IS NOT NULL
-                      AND ta.Deadline < GETDATE()";
+                      AND ta.Deadline < @Now
+                      AND NOT EXISTS (SELECT 1 FROM [dbo].[TaskReviews] tr WHERE tr.TaskAssignmentId = ta.Id)";
 
-                using (DataTable dt = DatabaseHelper.ExecuteQuery(query, new SqlParameter("@FamilyId", familyId)))
+                using (DataTable dt = DatabaseHelper.ExecuteQuery(query, 
+                    new SqlParameter("@FamilyId", familyId),
+                    new SqlParameter("@Now", now)))
                 {
                     int count = dt.Rows.Count;
                     System.Diagnostics.Debug.WriteLine(string.Format("AutoFailOverdueTasks: Found {0} overdue tasks in 'Assigned' or 'Ongoing' status", count));

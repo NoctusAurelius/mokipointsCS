@@ -3541,6 +3541,23 @@
                 <!-- Create Family Form -->
                 <div id="createForm" class="form-container">
                     <h2 style="margin-bottom: 20px; color: #333;">Create a New Family</h2>
+                    
+                    <!-- Information Panel -->
+                    <div style="background-color: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+                        <div style="display: flex; align-items: flex-start; gap: 10px;">
+                            <div style="font-size: 20px; color: #2196f3; flex-shrink: 0;">&#8505;</div>
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; color: #1976d2; margin-bottom: 8px; font-size: 15px;">About the Family Treasury System</div>
+                                <div style="color: #333; font-size: 14px; line-height: 1.6;">
+                                    <p style="margin: 0 0 8px 0;">When you create a family, you'll receive <strong>1,000,000 points</strong> in your family treasury.</p>
+                                    <p style="margin: 0 0 8px 0;">&bull; <strong>Task Rewards:</strong> When you create tasks and set point rewards, those points are deducted from the treasury.</p>
+                                    <p style="margin: 0 0 8px 0;">&bull; <strong>Reward Purchases:</strong> When children purchase rewards from the reward store, the points they spend are returned to the treasury.</p>
+                                    <p style="margin: 0;">&bull; <strong>Balance Management:</strong> Keep track of your treasury balance to ensure you have enough points for task rewards.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="txtCreateFamilyName">Family Name <span class="required">*</span></label>
                         <asp:TextBox ID="txtCreateFamilyName" runat="server" CssClass="form-control" placeholder="Enter family name"></asp:TextBox>

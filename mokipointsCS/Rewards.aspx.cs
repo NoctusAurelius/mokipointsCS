@@ -277,6 +277,12 @@ namespace mokipointsCS
                     return; // Keep modal open
                 }
                 
+                if (pointCost > 10000)
+                {
+                    ShowError("Point cost cannot exceed 10,000. Please enter a value between 1 and 10,000.");
+                    return; // Keep modal open
+                }
+                
                 string category = ddlCreateCategory.SelectedValue;
                 string imageUrl = txtCreateImageUrl.Text.Trim();
 

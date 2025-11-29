@@ -123,6 +123,15 @@ namespace mokipointsCS
         protected global::System.Web.UI.WebControls.Literal litBirthday;
 
         /// <summary>
+        /// litAge control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litAge;
+
+        /// <summary>
         /// litCreatedDate control.
         /// </summary>
         /// <remarks>

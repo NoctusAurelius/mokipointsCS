@@ -1,5 +1,51 @@
 # MokiPoints - Family Chore & Reward Management System
 
+**Version**: 5.0.4  
+**Last Updated**: December 2024  
+**Status**: ✅ Active Development
+
+---
+
+## 🆕 Latest Updates (Patch 5.0.4)
+
+### ✅ Validation & Security Improvements
+
+**Patch 5.0.4** includes comprehensive validation, security enhancements, and user experience improvements:
+
+#### Security Enhancements
+- **Duplicate Account Prevention**: System now prevents creating accounts with the same first name, last name, and birthday combination, even with different email addresses
+- **Account Identity Verification**: Enhanced registration validation to prevent duplicate identities
+
+#### Validation Improvements
+- **Task Creation Limits**: Maximum reward points per task set to 1,000 points
+- **Reward Creation Limits**: Maximum point cost per reward set to 10,000 points (matching child's maximum point cap)
+- **Age Validation**: Child accounts must be between 8 and 19 years old during registration
+- **Task Deadline Limits**: Task deadlines cannot exceed 30 days in the future
+- **Task Deadline Restrictions**: Deadlines cannot be set on the current date (must be tomorrow or later)
+
+#### Task Timer System
+- **Auto-Fail Timer**: Tasks now have a timer that starts when a child accepts the task
+- **Timer Range**: 10 minutes (minimum) to 24 hours (maximum)
+- **Auto-Fail on Expiration**: Tasks automatically fail if timer expires before submission
+- **Real-Time Countdown**: Timer countdown displayed on ongoing tasks with auto-refresh on expiration
+
+#### User Experience Improvements
+- **Collapsible Information Panels**: Information/instruction panels in Task Creation, Reward Creation, and Parent Dashboard are now hidden behind hover buttons to save space
+- **Welcome Messages**: Automatic welcome messages posted to family chat when new members join
+- **Multiple Child Assignment**: Parents can now assign the same task to multiple children simultaneously
+- **Button Loading States**: Create Task button now disables after click to prevent duplicate submissions
+- **Individual Child Metrics**: Parent Dashboard now shows individual child task completion/failure metrics instead of aggregate statistics
+
+#### Bug Fixes
+- Fixed encoding issues (gibberish characters) in information panels
+- Fixed auto-refresh when timer expires in child tasks
+- Fixed family rejoin bug (UNIQUE constraint violation)
+- Fixed compilation errors with null-conditional operators
+
+**For detailed documentation, see**: [PATCH_5.0.4_VALIDATION_AND_SECURITY.md](mokipointsCS/Documentation/PATCH_5.0.4_VALIDATION_AND_SECURITY.md)
+
+---
+
 ## 📋 Table of Contents
 
 - [Overview](#overview)

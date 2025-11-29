@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Web.UI;
@@ -115,20 +116,33 @@ namespace mokipointsCS
                 }
 
                 DataTable children = TaskHelper.GetFamilyChildren(familyId.Value);
-                ddlChild.Items.Clear();
-                ddlChild.Items.Add(new ListItem("-- Select a child --", ""));
+                cblChildren.Items.Clear();
 
                 foreach (DataRow child in children.Rows)
                 {
                     int childId = Convert.ToInt32(child["Id"]);
                     string childName = child["FirstName"].ToString() + " " + child["LastName"].ToString();
-                    ddlChild.Items.Add(new ListItem(childName, childId.ToString()));
+                    cblChildren.Items.Add(new ListItem(childName, childId.ToString()));
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("LoadChildren error: " + ex.Message);
                 ShowError("Failed to load children list.");
+            }
+        }
+
+        protected void ValidateChildrenSelection(object source, ServerValidateEventArgs args)
+        {
+            args.IsValid = false;
+            
+            foreach (ListItem item in cblChildren.Items)
+            {
+                if (item.Selected)
+                {
+                    args.IsValid = true;
+                    break;
+                }
             }
         }
 
@@ -142,7 +156,22 @@ namespace mokipointsCS
                 }
 
                 int taskId = Convert.ToInt32(Request.QueryString["taskId"]);
-                int childId = Convert.ToInt32(ddlChild.SelectedValue);
+                
+                // Get all selected children
+                List<int> selectedChildIds = new List<int>();
+                foreach (ListItem item in cblChildren.Items)
+                {
+                    if (item.Selected)
+                    {
+                        selectedChildIds.Add(Convert.ToInt32(item.Value));
+                    }
+                }
+                
+                if (selectedChildIds.Count == 0)
+                {
+                    ShowError("Please select at least one child to assign the task to.");
+                    return;
+                }
 
                 // Parse deadline with validation
                 DateTime? deadline = null;
@@ -160,13 +189,22 @@ namespace mokipointsCS
                         deadline = deadlineDate.Date.AddHours(23).AddMinutes(59).AddSeconds(59);
                     }
                     
-                    // Validate deadline: must be at least 10 minutes in the future
+                    // Validate deadline: cannot be on current date, must be at least 10 minutes in the future, maximum 30 days
                     DateTime now = DateTime.Now;
+                    DateTime today = now.Date; // Today at midnight
                     DateTime minDeadline = now.AddMinutes(10);
+                    DateTime maxDeadline = now.AddDays(30);
                     
                     if (deadline.Value <= now)
                     {
                         ShowError("Deadline must be in the future. Please select a date/time that has not passed.");
+                        return;
+                    }
+                    
+                    // Check if deadline is on current date (not allowed - Issue #8)
+                    if (deadline.Value.Date == today)
+                    {
+                        ShowError("Deadline cannot be set on today's date. Please select a future date (tomorrow or later).");
                         return;
                     }
                     
@@ -175,18 +213,56 @@ namespace mokipointsCS
                         ShowError(string.Format("Deadline must be at least 10 minutes in the future. The earliest deadline is {0:MMM dd, yyyy hh:mm tt}.", minDeadline));
                         return;
                     }
+                    
+                    if (deadline.Value > maxDeadline)
+                    {
+                        ShowError(string.Format("Deadline cannot be more than 30 days in the future. The latest deadline is {0:MMM dd, yyyy}.", maxDeadline.Date));
+                        return;
+                    }
                 }
 
-                // Assign task (Server-side deadline validation is also in TaskHelper.AssignTask)
-                bool success = TaskHelper.AssignTask(taskId, childId, deadline);
-
-                if (success)
+                // Assign task to all selected children
+                int successCount = 0;
+                int failCount = 0;
+                List<string> failedChildren = new List<string>();
+                
+                foreach (int childId in selectedChildIds)
                 {
-                    Response.Redirect("Tasks.aspx?assigned=true");
+                    bool success = TaskHelper.AssignTask(taskId, childId, deadline);
+                    if (success)
+                    {
+                        successCount++;
+                    }
+                    else
+                    {
+                        failCount++;
+                        // Get child name for error message
+                        string childName = cblChildren.Items.FindByValue(childId.ToString()).Text;
+                        failedChildren.Add(childName);
+                    }
+                }
+                
+                if (successCount > 0)
+                {
+                    if (failCount == 0)
+                    {
+                        // All assignments successful
+                        Response.Redirect("Tasks.aspx?assigned=true&count=" + successCount);
+                    }
+                    else
+                    {
+                        // Some succeeded, some failed
+                        string errorMsg = string.Format("Task assigned to {0} child(ren) successfully. Failed to assign to: {1}", 
+                            successCount, string.Join(", ", failedChildren));
+                        ShowError(errorMsg);
+                        // Still redirect to show success
+                        Response.Redirect("Tasks.aspx?assigned=true&count=" + successCount);
+                    }
                 }
                 else
                 {
-                    ShowError("Failed to assign task. The child may be banned, or the task may already be assigned to this child.");
+                    // All assignments failed
+                    ShowError("Failed to assign task to any selected children. They may be banned, or the task may already be assigned to them.");
                 }
             }
             catch (Exception ex)

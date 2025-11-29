@@ -4,6 +4,7 @@
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
+    <meta charset="utf-8" />
     <title>Tasks - MOKI POINTS</title>
     <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
@@ -691,6 +692,22 @@
             background-color: #0052a3;
         }
         
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
         .btn-cancel {
             padding: 12px 24px;
             background-color: #666;
@@ -1083,6 +1100,34 @@
                         <span class="close" onclick="closeCreateModal()">&times;</span>
                     </div>
                     <div id="createTaskForm">
+                        <!-- Information Panel (Collapsible) -->
+                        <div style="position: relative; margin-bottom: 20px;">
+                            <button type="button" class="info-toggle-btn" onmouseenter="showTaskInfo()" onmouseleave="hideTaskInfo()" style="background-color: #ff9800; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: all 0.3s ease;" title="Show instructions">&#8505;</button>
+                            <div id="taskInfoPanel" onmouseenter="showTaskInfo()" onmouseleave="hideTaskInfo()" style="display: none; position: absolute; top: 45px; left: 0; z-index: 1000; background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; border-radius: 5px; min-width: 400px; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                                    <div style="font-size: 20px; color: #ff9800; flex-shrink: 0;">&#8505;</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; color: #f57c00; margin-bottom: 8px; font-size: 15px;">How to Create a Task</div>
+                                        <div style="color: #333; font-size: 14px; line-height: 1.6;">
+                                            <p style="margin: 0 0 8px 0;">&bull; <strong>Title &amp; Description:</strong> Provide a clear title and description so children understand what needs to be done.</p>
+                                            <p style="margin: 0 0 8px 0;">&bull; <strong>Points Reward:</strong> Set the reward points (1-1,000 points). Points are deducted from your family treasury when the task is assigned.</p>
+                                            <p style="margin: 0 0 8px 0;">&bull; <strong>Estimated Time:</strong> Set the timer duration (10 minutes to 24 hours). When a child accepts the task, a timer starts automatically. If the timer expires before submission, the task will auto-fail.</p>
+                                            <p style="margin: 0 0 8px 0;">&bull; <strong>Objectives:</strong> Add at least one objective that must be completed for the task to be considered done.</p>
+                                            <p style="margin: 0;">&bull; <strong>Limitations:</strong> Maximum reward points per task is 1,000 points. Tasks can be assigned to children with deadlines up to 30 days in the future. Deadline cannot be set on the current date.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <script>
+                            function showTaskInfo() {
+                                document.getElementById('taskInfoPanel').style.display = 'block';
+                            }
+                            function hideTaskInfo() {
+                                document.getElementById('taskInfoPanel').style.display = 'none';
+                            }
+                        </script>
+                        
                         <div class="form-group">
                             <label>Task Title <span class="required">*</span></label>
                             <asp:TextBox ID="txtCreateTitle" runat="server" CssClass="form-control" placeholder="Enter task title" />
@@ -1110,12 +1155,12 @@
                         
                         <div class="form-group">
                             <label>Points Reward <span class="required">*</span></label>
-                            <asp:TextBox ID="txtCreatePoints" runat="server" CssClass="form-control" TextMode="Number" min="1" placeholder="Enter points" />
+                            <asp:TextBox ID="txtCreatePoints" runat="server" CssClass="form-control" TextMode="Number" min="1" max="1000" placeholder="Enter points (max: 1,000)" />
                             <asp:RequiredFieldValidator ID="rfvCreatePoints" runat="server" ControlToValidate="txtCreatePoints" 
                                 ErrorMessage="Points are required" CssClass="error-message" Display="Dynamic" ValidationGroup="CreateTask" />
                             <asp:RangeValidator ID="rvCreatePoints" runat="server" ControlToValidate="txtCreatePoints" 
-                                Type="Integer" MinimumValue="1" MaximumValue="10000" 
-                                ErrorMessage="Points must be between 1 and 10000" CssClass="error-message" Display="Dynamic" ValidationGroup="CreateTask" />
+                                Type="Integer" MinimumValue="1" MaximumValue="1000" 
+                                ErrorMessage="Points must be between 1 and 1,000" CssClass="error-message" Display="Dynamic" ValidationGroup="CreateTask" />
                         </div>
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -1143,7 +1188,19 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div class="form-group">
                                 <label>Estimated Time (minutes)</label>
-                                <asp:TextBox ID="txtCreateEstimatedMinutes" runat="server" CssClass="form-control" TextMode="Number" min="1" placeholder="Optional" />
+                                <asp:TextBox ID="txtCreateEstimatedMinutes" runat="server" CssClass="form-control" TextMode="Number" min="10" max="1440" placeholder="10-1440 minutes (timer duration)" />
+                                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">
+                                    Timer duration: 10 minutes (minimum) to 24 hours (1440 minutes maximum)
+                                </small>
+                                <asp:RangeValidator ID="rvCreateEstimatedMinutes" runat="server" 
+                                    ControlToValidate="txtCreateEstimatedMinutes" 
+                                    Type="Integer" 
+                                    MinimumValue="10" 
+                                    MaximumValue="1440" 
+                                    ErrorMessage="Estimated time must be between 10 and 1440 minutes (24 hours)." 
+                                    CssClass="error-message" 
+                                    Display="Dynamic" 
+                                    ValidationGroup="CreateTask" />
                             </div>
                             
                             <div class="form-group">
@@ -1175,7 +1232,7 @@
                         </div>
                         
                         <asp:Button ID="btnCreateTaskSubmit" runat="server" Text="Create Task" CssClass="btn-submit" 
-                            ValidationGroup="CreateTask" OnClick="btnCreateTaskSubmit_Click" />
+                            ValidationGroup="CreateTask" OnClick="btnCreateTaskSubmit_Click" OnClientClick="disableCreateButton(this); return true;" UseSubmitBehavior="true" />
                         <button type="button" class="btn-cancel" onclick="closeCreateModal()">Cancel</button>
                     </div>
                 </div>
@@ -1333,6 +1390,86 @@
             cards.forEach(function(card) {
                 container.appendChild(card);
             });
+        }
+
+        // Track if form is submitting to prevent double submission
+        var isSubmitting = false;
+        
+        // Disable create button and show loading state
+        function disableCreateButton(button) {
+            // Check if already submitting
+            if (isSubmitting) {
+                return false; // Prevent double submission
+            }
+            
+            // Validate first - if validation fails, don't disable and let ASP.NET show errors
+            if (typeof Page_ClientValidate === 'function') {
+                var isValid = Page_ClientValidate('CreateTask');
+                if (!isValid) {
+                    // Validation failed - don't disable button, let errors show
+                    return false;
+                }
+            }
+            
+            // Mark as submitting
+            isSubmitting = true;
+            
+            // Update button appearance immediately (but don't disable yet)
+            button.style.opacity = '0.6';
+            button.style.pointerEvents = 'none';
+            
+            // Change button text to show loading state
+            var originalText = button.value || button.textContent;
+            if (originalText) {
+                button.setAttribute('data-original-text', originalText);
+            }
+            button.value = 'Creating...';
+            if (button.textContent !== undefined) {
+                button.textContent = 'Creating...';
+            }
+            
+            // Add loading spinner if not already added
+            if (!button.querySelector('.loading-spinner')) {
+                var spinner = document.createElement('span');
+                spinner.className = 'loading-spinner';
+                spinner.innerHTML = ' ⏳';
+                spinner.style.marginLeft = '8px';
+                button.appendChild(spinner);
+            }
+            
+            // Now disable the button after allowing postback to start
+            setTimeout(function() {
+                if (button) {
+                    button.disabled = true;
+                    button.style.cursor = 'not-allowed';
+                }
+            }, 100);
+            
+            // Allow form submission to proceed
+            return true;
+        }
+        
+        // Re-enable button if validation fails (called from server-side if needed)
+        function enableCreateButton() {
+            isSubmitting = false; // Reset submission flag
+            var button = document.getElementById('<%= btnCreateTaskSubmit.ClientID %>');
+            if (button) {
+                button.disabled = false;
+                button.style.opacity = '1';
+                button.style.cursor = 'pointer';
+                button.style.pointerEvents = 'auto';
+                var originalText = button.getAttribute('data-original-text');
+                if (originalText) {
+                    button.value = originalText;
+                    if (button.textContent !== undefined) {
+                        button.textContent = originalText;
+                    }
+                }
+                var spinner = button.querySelector('.loading-spinner');
+                if (spinner) {
+                    spinner.remove();
+                }
+            }
         }
 
         // Set no family icon using Unicode to avoid encoding issues

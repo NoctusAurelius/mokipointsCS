@@ -548,6 +548,8 @@ namespace mokipointsCS
                             [IsDeleted] BIT NOT NULL DEFAULT 0,
                             [DeletedDate] DATETIME NULL,
                             [DeletedBy] INT NULL,
+                            [TimerStart] DATETIME NULL,
+                            [TimerDuration] INT NULL,
                             FOREIGN KEY ([TaskId]) REFERENCES [dbo].[Tasks]([Id]),
                             FOREIGN KEY ([UserId]) REFERENCES [dbo].[Users]([Id]),
                             FOREIGN KEY ([DeletedBy]) REFERENCES [dbo].[Users]([Id])
@@ -556,6 +558,7 @@ namespace mokipointsCS
                         CREATE INDEX IX_TaskAssignments_UserId ON [dbo].[TaskAssignments]([UserId])
                         CREATE INDEX IX_TaskAssignments_Status ON [dbo].[TaskAssignments]([Status])
                         CREATE INDEX IX_TaskAssignments_IsDeleted ON [dbo].[TaskAssignments]([IsDeleted])
+                        CREATE INDEX IX_TaskAssignments_TimerStart ON [dbo].[TaskAssignments]([TimerStart]) WHERE [TimerStart] IS NOT NULL
                     END
                     ELSE
                     BEGIN
@@ -573,6 +576,20 @@ namespace mokipointsCS
                         BEGIN
                             ALTER TABLE [dbo].[TaskAssignments] ADD [DeletedBy] INT NULL;
                             ALTER TABLE [dbo].[TaskAssignments] ADD FOREIGN KEY ([DeletedBy]) REFERENCES [dbo].[Users]([Id]);
+                        END
+                        -- Add timer columns for Issue #8: Task Timer System
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TaskAssignments]') AND name = 'TimerStart')
+                        BEGIN
+                            ALTER TABLE [dbo].[TaskAssignments] ADD [TimerStart] DATETIME NULL;
+                        END
+                        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[TaskAssignments]') AND name = 'TimerDuration')
+                        BEGIN
+                            ALTER TABLE [dbo].[TaskAssignments] ADD [TimerDuration] INT NULL;
+                        END
+                        -- Create index for timer queries
+                        IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_TaskAssignments_TimerStart' AND object_id = OBJECT_ID(N'[dbo].[TaskAssignments]'))
+                        BEGIN
+                            CREATE INDEX IX_TaskAssignments_TimerStart ON [dbo].[TaskAssignments]([TimerStart]) WHERE [TimerStart] IS NOT NULL;
                         END
                     END";
 

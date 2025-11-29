@@ -4,6 +4,7 @@
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
+    <meta charset="utf-8" />
     <title>Parent Dashboard - MOKI POINTS</title>
     <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
@@ -397,142 +398,174 @@
                 </div>
             </div>
 
-            <!-- Statistics Charts -->
+            <!-- Individual Child Task Metrics -->
             <div class="quick-actions" style="margin-bottom: 30px;">
-                <h2 class="section-title">Activity Overview</h2>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-                    <div class="dashboard-card" style="padding: 20px;">
-                        <div class="card-title" style="margin-bottom: 15px;">Weekly Activity</div>
-                        <canvas id="weeklyChart" style="max-height: 250px;"></canvas>
-                        <asp:HiddenField ID="hdnWeekData" runat="server" />
-                    </div>
-                    <div class="dashboard-card" style="padding: 20px;">
-                        <div class="card-title" style="margin-bottom: 15px;">Monthly Activity</div>
-                        <canvas id="monthlyChart" style="max-height: 250px;"></canvas>
-                        <asp:HiddenField ID="hdnMonthData" runat="server" />
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 class="section-title" style="margin: 0;">Individual Child Task Metrics</h2>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <label style="font-size: 14px; color: #666;">Time Period:</label>
+                        <select id="ddlTimePeriod" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; cursor: pointer;">
+                            <option value="day">Last 7 Days</option>
+                            <option value="week" selected>Last 4 Weeks</option>
+                            <option value="month">Last 6 Months</option>
+                        </select>
                     </div>
                 </div>
-            </div>
-
-            <!-- Child Activity Overview -->
-            <div class="quick-actions" style="margin-bottom: 30px;">
-                <h2 class="section-title">Children Overview</h2>
-                <asp:Repeater ID="rptChildActivity" runat="server" OnItemDataBound="rptChildActivity_ItemDataBound">
-                    <ItemTemplate>
-                        <div class="activity-item" style="padding: 12px; margin-bottom: 8px; background: #f8f9fa; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                
+                <!-- Information Panel (Collapsible) -->
+                <div style="position: relative; margin-bottom: 20px;">
+                    <button type="button" class="info-toggle-btn" onmouseenter="showDashboardInfo()" onmouseleave="hideDashboardInfo()" style="background-color: #2196f3; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: all 0.3s ease;" title="Show instructions">&#8505;</button>
+                    <div id="dashboardInfoPanel" onmouseenter="showDashboardInfo()" onmouseleave="hideDashboardInfo()" style="display: none; position: absolute; top: 45px; left: 0; z-index: 1000; background-color: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; border-radius: 5px; min-width: 400px; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        <div style="display: flex; align-items: flex-start; gap: 10px;">
+                            <div style="font-size: 20px; color: #2196f3; flex-shrink: 0;">&#8505;</div>
                             <div style="flex: 1;">
-                                <div style="font-weight: bold; font-size: 15px; color: #333;">
-                                    <%# Eval("ChildName") %>
-                                </div>
-                                <div style="font-size: 13px; color: #666; margin-top: 3px;">
-                                    <strong style="color: #0066CC;"><%# Convert.ToInt32(Eval("CurrentBalance")).ToString("N0") %> points</strong>
-                                    <%# Convert.ToInt32(Eval("PendingReviewsCount")) > 0 ? " • " + Eval("PendingReviewsCount") + " pending" : "" %>
+                                <div style="font-weight: 600; color: #1976d2; margin-bottom: 8px; font-size: 15px;">About Individual Child Task Metrics</div>
+                                <div style="color: #333; font-size: 14px; line-height: 1.6;">
+                                    <p style="margin: 0 0 8px 0;">These charts show each child's task completion and failure rates over time. Use the time period selector to view daily, weekly, or monthly trends.</p>
+                                    <p style="margin: 0;">&bull; <strong>Completed Tasks</strong> (green line): Tasks successfully completed and approved</p>
+                                    <p style="margin: 0;">&bull; <strong>Failed Tasks</strong> (red line): Tasks that were not completed or failed review</p>
                                 </div>
                             </div>
-                            <asp:Literal ID="litActivityDot" runat="server"></asp:Literal>
                         </div>
-                    </ItemTemplate>
-                </asp:Repeater>
-                <asp:Panel ID="pnlNoChildren" runat="server" CssClass="placeholder-text" Visible="false">
+                    </div>
+                </div>
+                <script>
+                    function showDashboardInfo() {
+                        document.getElementById('dashboardInfoPanel').style.display = 'block';
+                    }
+                    function hideDashboardInfo() {
+                        document.getElementById('dashboardInfoPanel').style.display = 'none';
+                    }
+                </script>
+                
+                <asp:Panel ID="pnlChildMetrics" runat="server">
+                    <div id="childMetricsContainer" style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 10px; scroll-behavior: smooth;">
+                        <!-- Child metric charts will be dynamically generated here -->
+                    </div>
+                </asp:Panel>
+                
+                <asp:Panel ID="pnlNoChildrenMetrics" runat="server" CssClass="placeholder-text" Visible="false">
                     No children in your family
                 </asp:Panel>
+                
+                <asp:HiddenField ID="hdnChildMetricsData" runat="server" />
             </div>
         </div>
     </form>
 
     <script>
-        // Get data from hidden fields with error handling
-        var weekData = {tasks: 0, points: 0, orders: 0};
-        var monthData = {tasks: 0, points: 0, orders: 0};
+        var childCharts = [];
+        var currentPeriod = 'week';
         
-        try {
-            var weekField = document.getElementById('<%= hdnWeekData.ClientID %>');
-            if (weekField && weekField.value) {
-                weekData = JSON.parse(weekField.value);
-            }
-        } catch(e) {
-            console.log('Error parsing week data:', e);
-        }
-        
-        try {
-            var monthField = document.getElementById('<%= hdnMonthData.ClientID %>');
-            if (monthField && monthField.value) {
-                monthData = JSON.parse(monthField.value);
-            }
-        } catch(e) {
-            console.log('Error parsing month data:', e);
-        }
-
-        // Weekly Activity Chart
-        var weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
-        var weeklyChart = new Chart(weeklyCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Tasks', 'Points', 'Orders'],
-                datasets: [{
-                    label: 'This Week',
-                    data: [weekData.tasks, weekData.points, weekData.orders],
-                    backgroundColor: [
-                        'rgba(0, 102, 204, 0.7)',
-                        'rgba(255, 102, 0, 0.7)',
-                        'rgba(255, 20, 147, 0.7)'
-                    ],
-                    borderColor: [
-                        'rgba(0, 102, 204, 1)',
-                        'rgba(255, 102, 0, 1)',
-                        'rgba(255, 20, 147, 1)'
-                    ],
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
+        // Load child metrics data
+        function loadChildMetrics() {
+            try {
+                var metricsField = document.getElementById('<%= hdnChildMetricsData.ClientID %>');
+                if (!metricsField || !metricsField.value) {
+                    console.log('No child metrics data available');
+                    return;
+                }
+                
+                var childrenData = JSON.parse(metricsField.value);
+                var container = document.getElementById('childMetricsContainer');
+                if (!container) return;
+                
+                container.innerHTML = '';
+                childCharts = [];
+                
+                // Limit to 4 children at a time, show horizontal scroll for more
+                childrenData.forEach(function(childData, index) {
+                    if (index >= 4) return; // Show max 4 at a time
+                    
+                    var chartCard = document.createElement('div');
+                    chartCard.style.cssText = 'min-width: 300px; max-width: 300px; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
+                    
+                    var chartTitle = document.createElement('div');
+                    chartTitle.style.cssText = 'font-weight: bold; font-size: 16px; color: #333; margin-bottom: 15px; text-align: center;';
+                    chartTitle.textContent = childData.childName;
+                    chartCard.appendChild(chartTitle);
+                    
+                    var canvas = document.createElement('canvas');
+                    canvas.id = 'childChart_' + childData.childId;
+                    canvas.style.cssText = 'max-height: 250px;';
+                    chartCard.appendChild(canvas);
+                    
+                    container.appendChild(chartCard);
+                    
+                    // Create chart
+                    var ctx = canvas.getContext('2d');
+                    var chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: childData.labels,
+                            datasets: [
+                                {
+                                    label: 'Completed',
+                                    data: childData.completed,
+                                    borderColor: 'rgba(76, 175, 80, 1)',
+                                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                                    borderWidth: 2,
+                                    fill: true,
+                                    tension: 0.4
+                                },
+                                {
+                                    label: 'Failed',
+                                    data: childData.failed,
+                                    borderColor: 'rgba(244, 67, 54, 1)',
+                                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                    borderWidth: 2,
+                                    fill: true,
+                                    tension: 0.4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'bottom'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        stepSize: 1
+                                    }
+                                }
+                            }
                         }
-                    }
+                    });
+                    
+                    childCharts.push(chart);
+                });
+                
+                // Show scroll indicator if more than 4 children
+                if (childrenData.length > 4) {
+                    var scrollIndicator = document.createElement('div');
+                    scrollIndicator.style.cssText = 'text-align: center; color: #666; font-size: 12px; margin-top: 10px;';
+                    scrollIndicator.textContent = '← Scroll horizontally to see more children →';
+                    container.parentElement.appendChild(scrollIndicator);
                 }
+            } catch(e) {
+                console.error('Error loading child metrics:', e);
             }
-        });
-
-        // Monthly Activity Chart
-        var monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-        var monthlyChart = new Chart(monthlyCtx, {
-            type: 'line',
-            data: {
-                labels: ['Tasks', 'Points', 'Orders'],
-                datasets: [{
-                    label: 'This Month',
-                    data: [monthData.tasks, monthData.points, monthData.orders],
-                    backgroundColor: 'rgba(0, 102, 204, 0.1)',
-                    borderColor: 'rgba(0, 102, 204, 1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
+        }
+        
+        // Handle time period change
+        document.addEventListener('DOMContentLoaded', function() {
+            loadChildMetrics();
+            
+            var periodSelect = document.getElementById('ddlTimePeriod');
+            if (periodSelect) {
+                periodSelect.addEventListener('change', function() {
+                    currentPeriod = this.value;
+                    // Reload page with new period (or use AJAX to reload data)
+                    // For now, we'll reload the page
+                    window.location.href = 'ParentDashboard.aspx?period=' + currentPeriod;
+                });
             }
         });
     </script>

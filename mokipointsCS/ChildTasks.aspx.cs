@@ -235,6 +235,7 @@ namespace mokipointsCS
                 Button btnSubmit = (Button)e.Item.FindControl("btnSubmit");
                 Panel pnlDeadlineWarning = (Panel)e.Item.FindControl("pnlDeadlineWarning");
                 Literal litDeadlineWarning = (Literal)e.Item.FindControl("litDeadlineWarning");
+                Panel pnlTimer = (Panel)e.Item.FindControl("pnlTimer"); // Issue #8: Timer display
 
                 // Load objectives for "Ongoing" tasks (Fix #1: Server-side tracking)
                 if (status == "Ongoing" && pnlObjectives != null && rptObjectives != null)
@@ -298,7 +299,7 @@ namespace mokipointsCS
                     {
                         // Overdue
                         pnlDeadlineWarning.CssClass = "deadline-warning red";
-                        litDeadlineWarning.Text = "⚠️ This task is overdue!";
+                        litDeadlineWarning.Text = "&#9888; This task is overdue!";
                         pnlDeadlineWarning.Visible = true;
                     }
                     else if (timeRemaining.TotalDays < 1)
@@ -329,7 +330,7 @@ namespace mokipointsCS
                         // Include deadline time for reference
                         string deadlineTime = deadline.ToString("h:mm tt");
                         litDeadlineWarning.Text = string.Format(
-                            "<span class='deadline-icon'>⏰</span> " +
+                            "<span class='deadline-icon'>&#9200;</span> " +
                             "<span class='deadline-text'>Deadline in <strong>{0}</strong> ({1})</span>", 
                             timeText, deadlineTime);
                         
@@ -344,7 +345,7 @@ namespace mokipointsCS
                         // 1-2 days
                         pnlDeadlineWarning.CssClass = "deadline-warning yellow";
                         int days = (int)timeRemaining.TotalDays;
-                        litDeadlineWarning.Text = string.Format("⚠️ Deadline in {0} day(s)!", days);
+                        litDeadlineWarning.Text = string.Format("&#9888; Deadline in {0} day(s)!", days);
                         pnlDeadlineWarning.Visible = true;
                     }
                     else
@@ -355,6 +356,25 @@ namespace mokipointsCS
                         litDeadlineWarning.Text = string.Format("✓ {0} day(s) remaining", days);
                         pnlDeadlineWarning.Visible = true;
                     }
+                }
+                
+                // Issue #8: Show timer for Ongoing tasks that have a timer
+                if (pnlTimer != null && status == "Ongoing")
+                {
+                    // Check if task has timer (TimerStart and TimerDuration)
+                    if (row["TimerStart"] != DBNull.Value && row["TimerDuration"] != DBNull.Value)
+                    {
+                        pnlTimer.Visible = true;
+                        // Timer data attributes are already set in the ASPX template
+                    }
+                    else
+                    {
+                        pnlTimer.Visible = false;
+                    }
+                }
+                else if (pnlTimer != null)
+                {
+                    pnlTimer.Visible = false;
                 }
                 } // Close if (e.Item.ItemType...)
             }

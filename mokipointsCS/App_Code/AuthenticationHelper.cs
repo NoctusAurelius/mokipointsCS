@@ -139,6 +139,28 @@ namespace mokipointsCS
                     return -1;
                 }
 
+                // Check if FirstName + LastName + Birthday combination already exists
+                // This prevents creating multiple accounts with the same identity using different emails
+                if (birthday.HasValue)
+                {
+                    string duplicateCheckQuery = @"
+                        SELECT COUNT(*) FROM [dbo].[Users] 
+                        WHERE LOWER(LTRIM(RTRIM(FirstName))) = LOWER(LTRIM(RTRIM(@FirstName)))
+                        AND LOWER(LTRIM(RTRIM(LastName))) = LOWER(LTRIM(RTRIM(@LastName)))
+                        AND CAST(Birthday AS DATE) = CAST(@Birthday AS DATE)";
+                    
+                    object duplicateCount = DatabaseHelper.ExecuteScalar(duplicateCheckQuery,
+                        new SqlParameter("@FirstName", firstName),
+                        new SqlParameter("@LastName", lastName),
+                        new SqlParameter("@Birthday", birthday.Value.Date));
+                    
+                    if (Convert.ToInt32(duplicateCount) > 0)
+                    {
+                        // Duplicate name and birthday combination exists
+                        return -2; // Return -2 to indicate duplicate identity (different from -1 for duplicate email)
+                    }
+                }
+
                 // Hash the password
                 string passwordHash = PasswordHelper.HashPassword(password);
 

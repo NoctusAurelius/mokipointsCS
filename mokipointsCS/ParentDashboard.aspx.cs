@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
@@ -40,7 +42,15 @@ namespace mokipointsCS
                     if (familyId.HasValue)
                     {
                         TaskHelper.AutoFailOverdueTasks(familyId.Value);
-                        LoadDashboardMetrics(familyId.Value);
+                        
+                        // Get time period from query string (default to "week")
+                        string period = Request.QueryString["period"] ?? "week";
+                        if (period != "day" && period != "week" && period != "month")
+                        {
+                            period = "week";
+                        }
+                        
+                        LoadDashboardMetrics(familyId.Value, period);
                     }
                     
                     // Display user name - load from session or database
@@ -91,7 +101,7 @@ namespace mokipointsCS
             }
         }
 
-        protected void LoadDashboardMetrics(int familyId)
+        protected void LoadDashboardMetrics(int familyId, string period = "week")
         {
             try
             {
@@ -124,41 +134,51 @@ namespace mokipointsCS
                     pnlOrderBadge.Visible = false;
                 }
                 
-                // Medium Priority: Weekly Statistics (for charts)
-                var weekStats = DashboardHelper.GetWeeklyStatistics(familyId);
-                int weekTasks = Convert.ToInt32(weekStats["TasksCompleted"]);
-                int weekPoints = Convert.ToInt32(weekStats["PointsAwarded"]);
-                int weekOrders = Convert.ToInt32(weekStats["OrdersConfirmed"]);
-                
-                // Monthly Statistics (for charts)
-                var monthStats = DashboardHelper.GetMonthlyStatistics(familyId);
-                int monthTasks = Convert.ToInt32(monthStats["TasksCompleted"]);
-                int monthPoints = Convert.ToInt32(monthStats["PointsAwarded"]);
-                int monthOrders = Convert.ToInt32(monthStats["OrdersConfirmed"]);
-                
-                // Set chart data in hidden fields (JSON format)
-                if (hdnWeekData != null)
+                // Load individual child task metrics
+                DataTable children = TaskHelper.GetFamilyChildren(familyId);
+                if (children != null && children.Rows.Count > 0)
                 {
-                    hdnWeekData.Value = string.Format("{{\"tasks\":{0},\"points\":{1},\"orders\":{2}}}", weekTasks, weekPoints, weekOrders);
-                }
-                if (hdnMonthData != null)
-                {
-                    hdnMonthData.Value = string.Format("{{\"tasks\":{0},\"points\":{1},\"orders\":{2}}}", monthTasks, monthPoints, monthOrders);
-                }
-                
-                // Medium Priority: Child Activity Overview
-                DataTable childActivity = DashboardHelper.GetChildActivityOverview(familyId);
-                if (childActivity != null && childActivity.Rows.Count > 0)
-                {
-                    rptChildActivity.DataSource = childActivity;
-                    rptChildActivity.DataBind();
-                    rptChildActivity.Visible = true;
-                    pnlNoChildren.Visible = false;
+                    // Get child metrics data for each child (default to "week" period)
+                    System.Text.StringBuilder childMetricsJson = new System.Text.StringBuilder();
+                    childMetricsJson.Append("[");
+                    bool first = true;
+                    
+                    foreach (DataRow child in children.Rows)
+                    {
+                        if (!first) childMetricsJson.Append(",");
+                        first = false;
+                        
+                        int childId = Convert.ToInt32(child["Id"]);
+                        string childName = child["FirstName"].ToString() + " " + child["LastName"].ToString();
+                        
+                        var metrics = DashboardHelper.GetChildTaskMetrics(familyId, childId, period);
+                        
+                        childMetricsJson.Append("{");
+                        childMetricsJson.AppendFormat("\"childId\":{0},", childId);
+                        childMetricsJson.AppendFormat("\"childName\":\"{0}\",", childName.Replace("\"", "\\\""));
+                        childMetricsJson.AppendFormat("\"labels\":[{0}],", 
+                            string.Join(",", ((List<string>)metrics["labels"]).Select(l => "\"" + l.Replace("\"", "\\\"") + "\"")));
+                        childMetricsJson.AppendFormat("\"completed\":[{0}],", 
+                            string.Join(",", ((List<int>)metrics["completed"])));
+                        childMetricsJson.AppendFormat("\"failed\":[{0}]", 
+                            string.Join(",", ((List<int>)metrics["failed"])));
+                        childMetricsJson.Append("}");
+                    }
+                    
+                    childMetricsJson.Append("]");
+                    
+                    if (hdnChildMetricsData != null)
+                    {
+                        hdnChildMetricsData.Value = childMetricsJson.ToString();
+                    }
+                    
+                    pnlChildMetrics.Visible = true;
+                    pnlNoChildrenMetrics.Visible = false;
                 }
                 else
                 {
-                    rptChildActivity.Visible = false;
-                    pnlNoChildren.Visible = true;
+                    pnlChildMetrics.Visible = false;
+                    pnlNoChildrenMetrics.Visible = true;
                 }
                 
                 // Recent Activity section removed to reduce clutter
@@ -222,51 +242,6 @@ namespace mokipointsCS
             catch
             {
                 return "";
-            }
-        }
-
-        protected void rptChildActivity_ItemDataBound(object sender, System.Web.UI.WebControls.RepeaterItemEventArgs e)
-        {
-            if (e.Item.ItemType == System.Web.UI.WebControls.ListItemType.Item || 
-                e.Item.ItemType == System.Web.UI.WebControls.ListItemType.AlternatingItem)
-            {
-                System.Data.DataRowView row = (System.Data.DataRowView)e.Item.DataItem;
-                Literal litActivityDot = (Literal)e.Item.FindControl("litActivityDot");
-                
-                if (litActivityDot != null)
-                {
-                    string color = "#999"; // Default gray
-                    
-                    try
-                    {
-                        if (row["LastActivityDate"] != DBNull.Value && row["LastActivityDate"] != null)
-                        {
-                            DateTime lastActivity = Convert.ToDateTime(row["LastActivityDate"]);
-                            TimeSpan timeSince = DateTime.Now - lastActivity;
-
-                            if (timeSince.TotalDays <= 1)
-                            {
-                                color = "#28a745"; // Green - active today
-                            }
-                            else if (timeSince.TotalDays <= 7)
-                            {
-                                color = "#ffc107"; // Yellow - active this week
-                            }
-                            else
-                            {
-                                color = "#dc3545"; // Red - inactive
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Use default color
-                    }
-                    
-                    litActivityDot.Text = string.Format(
-                        "<div style=\"width: 12px; height: 12px; border-radius: 50%; background: {0};\"></div>", 
-                        color);
-                }
             }
         }
 

@@ -77,7 +77,15 @@ namespace mokipointsCS
                     // Check for success message from assignment
                     if (Request.QueryString["assigned"] == "true")
                     {
-                        ShowSuccess("Task assigned successfully!");
+                        string count = Request.QueryString["count"];
+                        if (!string.IsNullOrEmpty(count))
+                        {
+                            ShowSuccess("Task assigned to " + count + " child(ren) successfully!");
+                        }
+                        else
+                        {
+                            ShowSuccess("Task assigned successfully!");
+                        }
                     }
                     
                     LoadTasks();
@@ -217,6 +225,8 @@ namespace mokipointsCS
                 if (!Page.IsValid)
                 {
                     ShowError("Please fill in all required fields correctly.");
+                    // Re-enable button if validation fails
+                    ScriptManager.RegisterStartupScript(this, GetType(), "EnableCreateButton", "enableCreateButton();", true);
                     // Don't close modal - keep it open to show errors
                     return;
                 }
@@ -227,6 +237,8 @@ namespace mokipointsCS
                 if (!familyId.HasValue)
                 {
                     ShowError("You must be in a family to create tasks.");
+                    // Re-enable button if validation fails
+                    ScriptManager.RegisterStartupScript(this, GetType(), "EnableCreateButton", "enableCreateButton();", true);
                     return; // Keep modal open
                 }
 
@@ -247,6 +259,8 @@ namespace mokipointsCS
                 if (objectives.Count == 0)
                 {
                     ShowError("At least one objective is required. Please add at least one objective before creating the task.");
+                    // Re-enable button if validation fails
+                    ScriptManager.RegisterStartupScript(this, GetType(), "EnableCreateButton", "enableCreateButton();", true);
                     return; // Keep modal open
                 }
 
@@ -275,6 +289,14 @@ namespace mokipointsCS
                     return; // Keep modal open
                 }
                 
+                if (points > 1000)
+                {
+                    ShowError("Points cannot exceed 1,000. Please enter a value between 1 and 1,000.");
+                    // Re-enable button if validation fails
+                    ScriptManager.RegisterStartupScript(this, GetType(), "EnableCreateButton", "enableCreateButton();", true);
+                    return; // Keep modal open
+                }
+                
                 string priority = ddlCreatePriority.SelectedValue;
                 string difficulty = ddlCreateDifficulty.SelectedValue;
                 int? estimatedMinutes = null;
@@ -283,8 +305,25 @@ namespace mokipointsCS
                     if (!int.TryParse(txtCreateEstimatedMinutes.Text, out int estMins))
                     {
                         ShowError("Estimated minutes must be a valid number.");
+                        ScriptManager.RegisterStartupScript(this, GetType(), "EnableCreateButton", "enableCreateButton();", true);
                         return; // Keep modal open
                     }
+                    
+                    // Validate timer range (10 minutes to 24 hours = 1440 minutes)
+                    if (estMins < 10)
+                    {
+                        ShowError("Estimated time must be at least 10 minutes for the timer system.");
+                        ScriptManager.RegisterStartupScript(this, GetType(), "EnableCreateButton", "enableCreateButton();", true);
+                        return; // Keep modal open
+                    }
+                    
+                    if (estMins > 1440) // 24 hours = 1440 minutes
+                    {
+                        ShowError("Estimated time cannot exceed 24 hours (1440 minutes).");
+                        ScriptManager.RegisterStartupScript(this, GetType(), "EnableCreateButton", "enableCreateButton();", true);
+                        return; // Keep modal open
+                    }
+                    
                     estimatedMinutes = estMins;
                 }
                 string instructions = txtCreateInstructions.Text.Trim();
@@ -320,6 +359,8 @@ namespace mokipointsCS
                 else
                 {
                     ShowError("Failed to create task. Please try again.");
+                    // Re-enable button on error
+                    ScriptManager.RegisterStartupScript(this, GetType(), "EnableCreateButton", "enableCreateButton();", true);
                     // Don't close modal - keep it open to show error
                 }
             }
@@ -328,6 +369,8 @@ namespace mokipointsCS
                 System.Diagnostics.Debug.WriteLine("btnCreateTaskSubmit_Click error: " + ex.Message);
                 System.Diagnostics.Debug.WriteLine("Stack Trace: " + ex.StackTrace);
                 ShowError("An error occurred while creating the task: " + ex.Message);
+                // Re-enable button on error
+                ScriptManager.RegisterStartupScript(this, GetType(), "EnableCreateButton", "enableCreateButton();", true);
                 // Don't close modal - keep it open to show error
             }
         }

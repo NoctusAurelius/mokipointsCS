@@ -355,6 +355,12 @@
                             </div>
                         </div>
                         <div class="info-item">
+                            <div class="info-label">Age</div>
+                            <div class="info-value">
+                                <asp:Literal ID="litAge" runat="server"></asp:Literal>
+                            </div>
+                        </div>
+                        <div class="info-item">
                             <div class="info-label">Member Since</div>
                             <div class="info-value">
                                 <asp:Literal ID="litCreatedDate" runat="server"></asp:Literal>

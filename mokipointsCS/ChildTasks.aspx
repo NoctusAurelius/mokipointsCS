@@ -6,6 +6,7 @@
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
+    <meta charset="utf-8" />
     <title>My Tasks - MOKI POINTS</title>
     <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
@@ -609,7 +610,7 @@
                 if (timeRemaining <= 0) {
                     // Overdue
                     warning.className = 'deadline-warning red';
-                    deadlineText.innerHTML = '<span class="deadline-icon">⚠️</span> <span class="deadline-text">This task is overdue!</span>';
+                    deadlineText.innerHTML = '<span class="deadline-icon">&#9888;</span> <span class="deadline-text">This task is overdue!</span>';
                     return;
                 }
                 
@@ -643,6 +644,75 @@
         
         // Also update immediately on page load
         updateDeadlineCountdowns();
+        
+        // Issue #8: Update timer countdowns for all ongoing tasks
+        var timerExpired = false; // Flag to prevent multiple refreshes
+        function updateTimerCountdowns() {
+            var timers = document.querySelectorAll('.timer-countdown');
+            var anyExpired = false;
+            
+            timers.forEach(function(timer) {
+                var timerStart = timer.getAttribute('data-timer-start');
+                var timerDuration = timer.getAttribute('data-timer-duration');
+                
+                if (!timerStart || !timerDuration) return;
+                
+                var startDate = new Date(timerStart);
+                var durationMinutes = parseInt(timerDuration);
+                var endDate = new Date(startDate.getTime() + (durationMinutes * 60 * 1000));
+                var now = new Date();
+                var timeRemaining = endDate - now;
+                
+                if (timeRemaining <= 0) {
+                    // Timer expired
+                    timer.textContent = 'EXPIRED';
+                    timer.parentElement.parentElement.parentElement.style.backgroundColor = '#ffebee';
+                    timer.parentElement.parentElement.parentElement.style.borderLeftColor = '#d32f2f';
+                    timer.style.color = '#d32f2f';
+                    anyExpired = true;
+                    return;
+                }
+                
+                // Calculate remaining time
+                var hours = Math.floor(timeRemaining / (1000 * 60 * 60));
+                var minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+                var seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+                
+                // Format display
+                var timeText = '';
+                if (hours > 0) {
+                    timeText = hours + 'h ' + minutes + 'm ' + seconds + 's';
+                } else if (minutes > 0) {
+                    timeText = minutes + 'm ' + seconds + 's';
+                } else {
+                    timeText = seconds + 's';
+                }
+                
+                timer.textContent = timeText;
+                
+                // Change color when less than 10 minutes remaining
+                if (timeRemaining < (10 * 60 * 1000)) {
+                    timer.style.color = '#d32f2f'; // Red for urgency
+                } else if (timeRemaining < (30 * 60 * 1000)) {
+                    timer.style.color = '#FF9800'; // Orange for warning
+                } else {
+                    timer.style.color = '#E65100'; // Default orange
+                }
+            });
+            
+            // Auto-refresh if any timer expired (Issue #8 improvement)
+            if (anyExpired && !timerExpired) {
+                timerExpired = true;
+                // Wait 2 seconds to show "EXPIRED" message, then refresh
+                setTimeout(function() {
+                    window.location.reload();
+                }, 2000);
+            }
+        }
+        
+        // Update timer countdowns every second
+        setInterval(updateTimerCountdowns, 1000);
+        updateTimerCountdowns(); // Initial update
     </script>
 </head>
 <body>
@@ -695,6 +765,32 @@
                 <asp:Label ID="lblError" runat="server"></asp:Label>
             </asp:Panel>
 
+            <!-- Information Panel for Timer System (Issue #8) -->
+            <div class="info-panel" style="background-color: #e3f2fd; border-left: 4px solid #2196F3; padding: 20px; margin-bottom: 30px; border-radius: 5px;">
+                <h3 style="color: #1976D2; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">&#8505;</span>
+                    <span>About Task System &amp; Timer</span>
+                </h3>
+                <div style="color: #333; line-height: 1.8; font-size: 14px;">
+                    <p style="margin-bottom: 10px;"><strong>Timer System:</strong></p>
+                    <ul style="margin-left: 20px; margin-bottom: 15px;">
+                        <li>When you accept a task, a timer starts automatically based on the task's estimated time</li>
+                        <li>Timer range: 10 minutes to 24 hours</li>
+                        <li>If the timer expires before you submit the task, it will automatically fail and points will be deducted</li>
+                        <li>The timer countdown is displayed on each ongoing task</li>
+                    </ul>
+                    <p style="margin-bottom: 10px;"><strong>Task Status Flow:</strong></p>
+                    <ul style="margin-left: 20px; margin-bottom: 15px;">
+                        <li><strong>Assigned:</strong> Task waiting for you to accept or decline</li>
+                        <li><strong>Ongoing:</strong> Task accepted, timer running - complete all objectives and submit</li>
+                        <li><strong>Pending Review:</strong> Task submitted, waiting for parent review</li>
+                        <li><strong>Completed:</strong> Parent reviewed and awarded points</li>
+                        <li><strong>Failed:</strong> Timer expired or parent marked as failed - points deducted</li>
+                    </ul>
+                    <p style="margin-bottom: 0;"><strong>Deadline:</strong> Some tasks have deadlines. If a deadline passes, the task will also auto-fail. Deadlines are separate from timers and apply to the overall task completion date.</p>
+                </div>
+            </div>
+
             <!-- Tasks List -->
             <asp:Panel ID="pnlTasks" runat="server">
                 <div class="tasks-list">
@@ -715,6 +811,24 @@
                                 <!-- Deadline Warning (Fix #15) -->
                                 <asp:Panel ID="pnlDeadlineWarning" runat="server" Visible="false" CssClass="deadline-warning">
                                     <asp:Literal ID="litDeadlineWarning" runat="server"></asp:Literal>
+                                </asp:Panel>
+                                
+                                <!-- Timer Display (Issue #8) -->
+                                <asp:Panel ID="pnlTimer" runat="server" Visible="false" CssClass="timer-display" style="background-color: #fff3e0; border-left: 4px solid #FF9800; padding: 12px; border-radius: 5px; margin: 15px 0;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-size: 20px;">&#9201;</span>
+                                        <div style="flex: 1;">
+                                            <div style="font-weight: bold; color: #E65100; margin-bottom: 5px;">
+                                                Timer: <span class="timer-countdown" data-timer-start='<%# Eval("TimerStart") != DBNull.Value ? ((DateTime)Eval("TimerStart")).ToString("yyyy-MM-ddTHH:mm:ss") : "" %>' 
+                                                             data-timer-duration='<%# Eval("TimerDuration") != DBNull.Value ? Eval("TimerDuration").ToString() : "" %>'>
+                                                    Calculating...
+                                                </span>
+                                            </div>
+                                            <div style="font-size: 12px; color: #666;">
+                                                Task will auto-fail when timer expires
+                                            </div>
+                                        </div>
+                                    </div>
                                 </asp:Panel>
                                 
                                 <div class="task-points"><%# Eval("PointsReward") %> points</div>

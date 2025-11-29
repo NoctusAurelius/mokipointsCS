@@ -201,6 +201,101 @@ namespace mokipointsCS
         }
 
         /// <summary>
+        /// Gets individual child task metrics (completed and failed tasks) for a specific time period
+        /// </summary>
+        /// <param name="familyId">Family ID</param>
+        /// <param name="childId">Child user ID</param>
+        /// <param name="period">Time period: "day", "week", or "month"</param>
+        /// <returns>Dictionary with labels (dates) and datasets (completed/failed counts)</returns>
+        public static Dictionary<string, object> GetChildTaskMetrics(int familyId, int childId, string period)
+        {
+            try
+            {
+                DateTime startDate;
+                string dateFormat;
+                
+                switch (period.ToLower())
+                {
+                    case "day":
+                        // Last 7 days
+                        startDate = DateTime.Now.AddDays(-7).Date;
+                        dateFormat = "MMM dd";
+                        break;
+                    case "week":
+                        // Last 4 weeks
+                        startDate = DateTime.Now.AddDays(-28).Date;
+                        dateFormat = "MMM dd";
+                        break;
+                    case "month":
+                        // Last 6 months
+                        startDate = DateTime.Now.AddMonths(-6).Date;
+                        dateFormat = "MMM yyyy";
+                        break;
+                    default:
+                        startDate = DateTime.Now.AddDays(-7).Date;
+                        dateFormat = "MMM dd";
+                        break;
+                }
+                
+                string query = @"
+                    SELECT 
+                        CAST(COALESCE(ta.CompletedDate, tr.ReviewDate, CASE WHEN ta.Status = 'Failed' THEN GETDATE() ELSE NULL END) AS DATE) AS ActivityDate,
+                        SUM(CASE WHEN ta.Status = 'Pending Review' AND (tr.IsFailed = 0 OR tr.IsFailed IS NULL) THEN 1 
+                                 WHEN ta.Status = 'Completed' THEN 1 ELSE 0 END) AS CompletedCount,
+                        SUM(CASE WHEN ta.Status = 'Failed' THEN 1 
+                                 WHEN ta.Status = 'Pending Review' AND tr.IsFailed = 1 THEN 1 ELSE 0 END) AS FailedCount
+                    FROM [dbo].[TaskAssignments] ta
+                    INNER JOIN [dbo].[Tasks] t ON ta.TaskId = t.Id
+                    LEFT JOIN [dbo].[TaskReviews] tr ON ta.Id = tr.TaskAssignmentId
+                    WHERE t.FamilyId = @FamilyId
+                      AND ta.UserId = @ChildId
+                      AND ta.IsDeleted = 0
+                      AND (
+                          (ta.CompletedDate IS NOT NULL AND ta.CompletedDate >= @StartDate)
+                          OR (ta.Status = 'Failed' AND ta.UpdatedDate >= @StartDate)
+                          OR (tr.ReviewDate IS NOT NULL AND tr.ReviewDate >= @StartDate)
+                      )
+                    GROUP BY CAST(COALESCE(ta.CompletedDate, tr.ReviewDate, CASE WHEN ta.Status = 'Failed' THEN GETDATE() ELSE NULL END) AS DATE)
+                    ORDER BY ActivityDate";
+                
+                Dictionary<string, object> result = new Dictionary<string, object>();
+                List<string> labels = new List<string>();
+                List<int> completedData = new List<int>();
+                List<int> failedData = new List<int>();
+                
+                using (DataTable dt = DatabaseHelper.ExecuteQuery(query,
+                    new SqlParameter("@FamilyId", familyId),
+                    new SqlParameter("@ChildId", childId),
+                    new SqlParameter("@StartDate", startDate)))
+                {
+                    foreach (DataRow row in dt.Rows)
+                    {
+                        DateTime activityDate = Convert.ToDateTime(row["ActivityDate"]);
+                        labels.Add(activityDate.ToString(dateFormat));
+                        completedData.Add(Convert.ToInt32(row["CompletedCount"]));
+                        failedData.Add(Convert.ToInt32(row["FailedCount"]));
+                    }
+                }
+                
+                result["labels"] = labels;
+                result["completed"] = completedData;
+                result["failed"] = failedData;
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(string.Format("GetChildTaskMetrics error: {0}", ex.Message));
+                return new Dictionary<string, object> 
+                { 
+                    { "labels", new List<string>() }, 
+                    { "completed", new List<int>() }, 
+                    { "failed", new List<int>() } 
+                };
+            }
+        }
+
+        /// <summary>
         /// Gets child activity overview for a family
         /// </summary>
         public static DataTable GetChildActivityOverview(int familyId)

@@ -4,6 +4,7 @@
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head runat="server">
+    <meta charset="utf-8" />
     <title>Rewards - MOKI POINTS</title>
     <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
@@ -1069,6 +1070,33 @@
                         <span class="close" onclick="closeCreateModal()">&#215;</span>
                     </div>
                     <div id="createRewardForm">
+                        <!-- Information Panel (Collapsible) -->
+                        <div style="position: relative; margin-bottom: 20px;">
+                            <button type="button" class="info-toggle-btn" onmouseenter="showRewardInfo()" onmouseleave="hideRewardInfo()" style="background-color: #9c27b0; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: all 0.3s ease;" title="Show instructions">&#8505;</button>
+                            <div id="rewardInfoPanel" onmouseenter="showRewardInfo()" onmouseleave="hideRewardInfo()" style="display: none; position: absolute; top: 45px; left: 0; z-index: 1000; background-color: #f3e5f5; border-left: 4px solid #9c27b0; padding: 15px; border-radius: 5px; min-width: 400px; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                <div style="display: flex; align-items: flex-start; gap: 10px;">
+                                    <div style="font-size: 20px; color: #9c27b0; flex-shrink: 0;">&#8505;</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; color: #7b1fa2; margin-bottom: 8px; font-size: 15px;">How to Create a Reward</div>
+                                        <div style="color: #333; font-size: 14px; line-height: 1.6;">
+                                            <p style="margin: 0 0 8px 0;">&bull; <strong>Reward Name &amp; Description:</strong> Provide a clear name and description so children know what they're purchasing.</p>
+                                            <p style="margin: 0 0 8px 0;">&bull; <strong>Point Cost:</strong> Set the point cost (1-10,000 points). This is the amount children will pay from their earned points.</p>
+                                            <p style="margin: 0 0 8px 0;">&bull; <strong>Treasury Return:</strong> When a child purchases a reward, the points they spend are automatically returned to your family treasury.</p>
+                                            <p style="margin: 0;">&bull; <strong>Limitations:</strong> Maximum point cost per reward is 10,000 points (matching the child's maximum point cap). Choose a category to help organize rewards.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <script>
+                            function showRewardInfo() {
+                                document.getElementById('rewardInfoPanel').style.display = 'block';
+                            }
+                            function hideRewardInfo() {
+                                document.getElementById('rewardInfoPanel').style.display = 'none';
+                            }
+                        </script>
+                        
                         <div class="form-group">
                             <label class="form-label">Reward Name <span style="color: #d32f2f;">*</span></label>
                             <asp:TextBox ID="txtCreateName" runat="server" CssClass="form-control" placeholder="Enter reward name"></asp:TextBox>
@@ -1086,7 +1114,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Point Cost <span style="color: #d32f2f;">*</span></label>
-                            <asp:TextBox ID="txtCreatePointCost" runat="server" CssClass="form-control" TextMode="Number" min="1" placeholder="Enter point cost"></asp:TextBox>
+                            <asp:TextBox ID="txtCreatePointCost" runat="server" CssClass="form-control" TextMode="Number" min="1" max="10000" placeholder="Enter point cost (max: 10,000)"></asp:TextBox>
                             <asp:RequiredFieldValidator ID="rfvCreatePointCost" runat="server" 
                                 ControlToValidate="txtCreatePointCost" 
                                 ErrorMessage="Point cost is required." 
@@ -1098,8 +1126,8 @@
                                 ControlToValidate="txtCreatePointCost" 
                                 Type="Integer" 
                                 MinimumValue="1" 
-                                MaximumValue="999999" 
-                                ErrorMessage="Point cost must be between 1 and 999,999." 
+                                MaximumValue="10000" 
+                                ErrorMessage="Point cost must be between 1 and 10,000." 
                                 ValidationGroup="CreateReward" 
                                 Display="Dynamic" 
                                 CssClass="error-message" 

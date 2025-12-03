@@ -378,6 +378,19 @@ namespace mokipointsCS
                     lblError.Text = message;
                     lblError.Visible = true;
                     System.Diagnostics.Debug.WriteLine("Error label updated successfully");
+                    
+                    // Register client script to trigger auto-fade after 5 seconds
+                    string script = @"
+                        setTimeout(function() {
+                            var errorMsg = document.getElementById('" + lblError.ClientID + @"');
+                            if (errorMsg) {
+                                errorMsg.classList.add('fade-out');
+                                setTimeout(function() {
+                                    errorMsg.style.display = 'none';
+                                }, 500);
+                            }
+                        }, 5000);";
+                    ClientScript.RegisterStartupScript(this.GetType(), "AutoFadeError", script, true);
                 }
                 else
                 {

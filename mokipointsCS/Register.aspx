@@ -205,12 +205,23 @@
         .error-message {
             color: #d32f2f;
             font-size: 14px;
-            margin-top: 10px;
-            text-align: center;
-            padding: 10px;
+            padding: 15px 20px;
             background-color: #ffebee;
             border-radius: 5px;
             border-left: 3px solid #d32f2f;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            opacity: 1;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        .error-message.fade-out {
+            opacity: 0;
+            pointer-events: none;
         }
         
         .validation-error {
@@ -427,6 +438,33 @@
             var selectedRole = document.getElementById('<%= hidRole.ClientID %>').value;
             if (selectedRole) {
                 selectRole(selectedRole);
+            }
+            
+            // Auto-fade error messages after 5 seconds if visible
+            var errorMessage = document.getElementById('<%= lblError.ClientID %>');
+            if (errorMessage) {
+                // Check if error message is visible (either inline style or server-side Visible property made it render)
+                var isVisible = errorMessage.offsetParent !== null || 
+                               window.getComputedStyle(errorMessage).display !== 'none';
+                
+                if (isVisible && errorMessage.textContent.trim() !== '') {
+                    // Reset fade state
+                    errorMessage.classList.remove('fade-out');
+                    errorMessage.style.opacity = '1';
+                    
+                    // Clear any existing timeout
+                    if (window.errorMessageTimeout) {
+                        clearTimeout(window.errorMessageTimeout);
+                    }
+                    
+                    // Set timeout to fade out after 5 seconds
+                    window.errorMessageTimeout = setTimeout(function() {
+                        errorMessage.classList.add('fade-out');
+                        setTimeout(function() {
+                            errorMessage.style.display = 'none';
+                        }, 500); // Wait for fade transition to complete
+                    }, 5000);
+                }
             }
         });
     </script>
